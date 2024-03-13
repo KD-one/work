@@ -1,0 +1,19 @@
+{{ define "branchToVersion/btv.html" }}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>历史版本</title>
+</head>
+<body>
+<h1>项目名：{{.branch}}</h1>
+{{range $version, $names := .versions}}
+<h3>版本号: {{$version}}</h3>
+<ul>
+    {{range $name := $names}}
+        <li><a href="/{{$name}}">{{$name}}</a></li>
+    {{end}}
+</ul>
+{{end}}
+</body>
+</html>
+{{ end }}

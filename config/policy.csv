@@ -1,0 +1,3 @@
+p, user, /api/*, GET
+p, user, /api/*, POST
+g, alice, user
