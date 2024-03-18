@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/spf13/viper"
-	"regexp"
 	"strings"
 	"test/common"
 	"test/model"
@@ -57,21 +56,6 @@ func UpdateFileMapByProjectAndVersion(fileMap *model.Filemap, projectName string
 	return err
 }
 
-func DBUserLogin(name, password string, userId *uint) error {
-	var user model.User
-	res := common.DB.Where("name = ?", name).First(&user)
-	if res.RowsAffected == 0 {
-		return errors.New("DBUserLogin 用户不存在")
-	}
-
-	// 如果输入的密码加密完 和数据库中的密码相同，则证明密码输入正确，否则错误
-	if mD5([]byte(password)) != user.Password {
-		return errors.New("DBUserLogin 密码错误")
-	}
-	*userId = user.ID
-	return nil
-}
-
 func DBUserRegister(name, password string, appAuth, paraAuth string, user *model.User) error {
 	common.DB.Where("name = ?", name).First(&user)
 	if user.ID != 0 {
@@ -86,6 +70,38 @@ func DBUserRegister(name, password string, appAuth, paraAuth string, user *model
 		return errors.New("DBUserRegister 创建用户失败")
 	}
 
+	return nil
+}
+
+// -------------------------------------------- // --------------------------------------------------- // ------------------------------------------------ //
+
+func DBUserLogin(name, password string, userId *uint) error {
+	var user model.User
+	res := common.DB.Where("name = ?", name).First(&user)
+	if res.RowsAffected == 0 {
+		return errors.New("DBUserLogin 用户不存在")
+	}
+
+	// 如果输入的密码加密完 和数据库中的密码相同，则证明密码输入正确，否则错误
+	if password != user.Password {
+		return errors.New("DBUserLogin 密码错误")
+	}
+	*userId = user.ID
+	return nil
+}
+
+func DBUserGetTable(adminId uint, users *[]model.User) error {
+	var admin model.User
+	if common.DB.Model(model.User{}).Where("id = ?", adminId).First(&admin).Error != nil {
+		return errors.New("DBUserGetTable adminId不存在")
+	}
+	if admin.UserLevel < 2 {
+		return errors.New("DBUserGetTable 权限不足")
+	} else {
+		if common.DB.Model(&model.User{}).Find(&users).Error != nil {
+			return errors.New("DBUserGetTable 查询失败")
+		}
+	}
 	return nil
 }
 
@@ -147,21 +163,6 @@ func DBUserDelete(adminId uint, userName string, version int, changelog string) 
 		}
 	}
 	return DBTableAddNewVer(admin.Name, changelog)
-}
-
-func DBUserGetTable(adminId uint, users *[]model.User) error {
-	var admin model.User
-	if common.DB.Model(model.User{}).Where("id = ?", adminId).First(&admin).Error != nil {
-		return errors.New("DBUserGetTable adminId不存在")
-	}
-	if admin.UserLevel < 2 {
-		return errors.New("DBUserGetTable 权限不足")
-	} else {
-		if common.DB.Model(&model.User{}).Find(&users).Error != nil {
-			return errors.New("DBUserGetTable 查询失败")
-		}
-	}
-	return nil
 }
 
 func DBAppAuthGetUserAuth(adminId uint, appAuth *model.Appauth) error {
@@ -300,7 +301,7 @@ func DBParaAuthGetTableList(adminId uint, tableNames *[]string) error {
 		return errors.New("DBParaAuthGetTableList 权限不足")
 	} else {
 		// 使用正则解析出数据库名
-		databaseName := regexp.MustCompile(`(?<=\/)[^?]+`).FindString(viper.GetString("mysql.dsn"))
+		databaseName := viper.GetString("mysql.database")
 		rows, err := common.DB.Raw("SELECT table_name FROM information_schema.tables WHERE table_schema = ?;", databaseName).Rows()
 		if err != nil {
 			return errors.New("DBParaAuthGetTableList 获取数据库所有paraauth_表数据时出错")
@@ -399,7 +400,7 @@ func DBParaAuthDeleteTable(adminId uint, paraTableName string, version int, chan
 func DBTableGetLatestVer(version *int) error {
 	var maxRecord model.Tablever
 	if common.DB.Model(&model.Tablever{}).Order("ver desc").First(&maxRecord).Error != nil {
-		return errors.New("获取最新版本记录时出错")
+		return errors.New("DBTableGetLatestVer 获取最新版本记录时出错")
 	}
 	*version = maxRecord.Ver
 	return nil
@@ -434,8 +435,8 @@ func DBTableCheckVer(version int) error {
 		return err
 	}
 	if version != latesversion {
-		fmt.Println(latesversion)
-		fmt.Println(version)
+		fmt.Println("latesversion: ", latesversion)
+		fmt.Println("version: ", version)
 		var versionRecord model.Tablever
 		if common.DB.Model(model.Tablever{}).Where("ver = ?", latesversion).First(&versionRecord).Error != nil {
 			return errors.New("DBTableCheckVer 获取最新版本记录时出错")
@@ -449,7 +450,50 @@ func DBTableCheckVer(version int) error {
 
 func FindUserTable(users *[]model.User) error {
 	if common.DB.Model(&model.User{}).Find(&users).Error != nil {
-		return errors.New("DBUserGetTable 查询失败")
+		return errors.New("FindUserTable 查询失败")
 	}
 	return nil
+}
+
+func FindInstruction(instructionId uint, instruction *model.Instruction) error {
+	if common.DB.Model(&model.Instruction{}).Where("id = ?", instructionId).First(&instruction).RowsAffected == 0 {
+		return errors.New("FindInstructionTable 没找到记录")
+	}
+	return nil
+}
+
+func UpdateInstructionRecord(instructionId uint, instruction model.Instruction) error {
+	if common.DB.Model(&model.Instruction{}).Where("id = ?", instructionId).Updates(&instruction).Error != nil {
+		return errors.New("UpdateInstructionRecord 更新数据时出错")
+	}
+	return nil
+}
+
+func InsertInstructionReturnId(adminId uint, instruction model.Instruction) (uint, error) {
+	var admin model.User
+	var ins model.Instruction
+	res := common.DB.Model(&model.User{}).Where("id = ?", adminId).First(&admin)
+
+	if admin.UserLevel < 2 {
+		return 0, errors.New("InsertInstructionReturnId 权限不足")
+	} else {
+		if res.RowsAffected == 0 {
+			return 0, errors.New("InsertInstructionReturnId 用户不存在")
+		} else {
+			err := common.DB.Model(&model.Instruction{}).Create(&instruction).Error
+			if err != nil {
+				return 0, errors.New("InsertInstructionReturnId 插入数据时出错")
+			}
+			err = common.DB.Model(&model.Instruction{}).Order("id desc").First(&ins).Error
+			if err != nil {
+				return 0, errors.New("InsertInstructionReturnId 获取id时出错")
+			}
+			return ins.Id, nil
+		}
+	}
+}
+func FindUserName(adminId uint) string {
+	var admin model.User
+	common.DB.Model(&model.User{}).Where("id = ?", adminId).First(&admin)
+	return admin.Name
 }

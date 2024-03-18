@@ -1,5 +1,10 @@
 mysql:
   dsn: root:root@tcp(127.0.0.1:3306)/user?charset=utf8&parseTime=True&loc=Local
+  database: user
 port: :9999
 jwt:
   secret: a_secret_crect
+robot:
+  monitor: https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=8fd6e912-468b-4cd5-bca5-fc4259783f7d
+user:
+  expiration: 20

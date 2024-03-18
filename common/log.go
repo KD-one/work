@@ -1,9 +1,11 @@
 package common
 
 import (
+	"errors"
 	"io"
 	"log"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -56,4 +58,50 @@ func downloadFileLog() {
 		return
 	}
 	DownloadRecord = log.New(f, "", log.LstdFlags)
+}
+
+func DataToString(userId uint, describe string, parameter ...string) string {
+	userIdString := strconv.Itoa(int(userId))
+	t := time.Now().Format("2006-01-02 15:04:05")
+	data := "[ " + userIdString + " ]   " + t + "   " + describe
+	for _, v := range parameter {
+		data += "   " + v
+	}
+	data += "\n"
+	return data
+}
+
+func WriteStringToLog(data string) error {
+	t := time.Now().Format("2006_01_02")
+	f, er := os.OpenFile("log/"+t+".log", os.O_CREATE|os.O_APPEND|os.O_RDWR, os.ModePerm)
+	if er != nil {
+		return errors.New("open file error")
+	}
+	defer f.Close()
+	_, err = f.WriteString(data)
+	if err != nil {
+		return errors.New("write file error")
+	}
+	return nil
+}
+
+func WriteLog(userId uint, describe string, parameter ...string) error {
+	userIdString := strconv.Itoa(int(userId))
+	t := time.Now().Format("2006-01-02 15:04:05")
+	data := "[ " + userIdString + " ]   " + t + "   " + describe
+	for _, v := range parameter {
+		data += "   " + v
+	}
+	data += "\n"
+	t = time.Now().Format("2006_01_02")
+	f, er := os.OpenFile("log/"+t+".log", os.O_CREATE|os.O_APPEND|os.O_RDWR, os.ModePerm)
+	if er != nil {
+		return errors.New("open file error")
+	}
+	defer f.Close()
+	_, err = f.WriteString(data)
+	if err != nil {
+		return errors.New("write file error")
+	}
+	return nil
 }

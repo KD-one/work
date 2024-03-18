@@ -11,18 +11,26 @@ import (
 
 func main() {
 	config.Init()
+
 	// 初始化数据库
 	common.InitDB()
+
 	// 初始化casbin数据库
 	//common.InitCasbinDB()
+
 	// 日志相关
 	common.Log()
 	defer common.F.Close()
+
 	// 初始化用户列表
 	err := config.InitUserList(&service.UserList)
 	if err != nil {
 		panic("初始化用户列表失败")
 	}
+
+	// 每秒检查系统状态
+	go service.CheckUsersExpiration()
+
 	// 创建默认路由
 	r := gin.Default()
 

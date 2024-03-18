@@ -10,9 +10,24 @@ import (
 
 func RouterList(router *gin.Engine) {
 
-	router.POST("/login", api.Login)
-	router.GET("/getUserList", middleware.ParseToken(), api.GetUserList)
-	router.POST("/addChangeUser", middleware.ParseToken(), api.AddChangeUser)
+	// user
+	router.POST("/login", service.Login)
+	router.GET("/getUserList", middleware.ParseToken(), service.GetUserList)
+	router.POST("/addChangeUser", middleware.ParseToken(), service.AddChangeUser)
+	router.POST("/deleteUser", middleware.ParseToken(), service.DeleteUser)
+	router.POST("/sendCommand", middleware.ParseToken(), service.SendCommand)
+	router.POST("/keepalive", middleware.ParseToken(), service.Keepalive)
+	// paraAuth
+	router.GET("/getParaList", middleware.ParseToken(), service.GetParaAuthList)
+	router.POST("/getParaTable", middleware.ParseToken(), service.GetParaTable)
+	router.POST("/addChangePara", middleware.ParseToken(), service.AddChangePara)
+	router.POST("/deletePara", middleware.ParseToken(), service.DeletePara)
+	// 获取最新表操作记录
+	router.GET("/getDBTableVersion", middleware.ParseToken(), service.GetDBTableVersion)
+
+	//router.GET("/compareMemoryUsedPercent", service.CompareMemoryUsedPercent)
+	//router.GET("/compareCpuUsedPercent", service.CompareCpuUsedPercent)
+	//router.GET("/compareNetUsedPercent", service.CompareNetUsedPercent)
 	//
 	//
 	//

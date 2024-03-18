@@ -10,3 +10,8 @@ type User struct {
 	AppAuth   string `gorm:"varchar(255);not null" json:"app_auth" form:"app_auth"`
 	ParaAuth  string `gorm:"varchar(255);not null" json:"para_auth" form:"para_auth"`
 }
+
+type ClientList struct {
+	InstructionId     uint   `json:"instruction_id"`
+	InstructionResult string `json:"instruction_result"`
+}

@@ -37,8 +37,11 @@ func InitDB() {
 	//var f model.Filemap
 	//_ = db.AutoMigrate(&f)
 
-	var t model.Tablever
-	_ = db.AutoMigrate(&t)
+	//var t model.Tablever
+	//_ = db.AutoMigrate(&t)
+
+	var i model.Instruction
+	_ = db.AutoMigrate(&i)
 
 	DB = db
 }

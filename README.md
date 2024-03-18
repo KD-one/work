@@ -40,6 +40,7 @@
 | code     | 状态码 | int  |     | 是    |
 | message | 状态信息 | string |     | 是    |
 | token   | 权限钥匙  | string  | 只有登陆成功才发放token（有效期24h）    | 否    |
+
 **上传文件前端页面：**  
 请求地址：GET http://192.168.1.188/toUpload，  
 请求参数：
