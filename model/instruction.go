@@ -7,6 +7,7 @@ type Instruction struct {
 	AdminMechineName  string `gorm:"not null" json:"admin_mechine_name" form:"admin_mechine_name"`
 	ClientName        string `gorm:"not null" json:"client_name" form:"client_name"`
 	ClientMachineName string `gorm:"not null" json:"client_machine_name" form:"client_machine_name"`
+	ResultCreateTime  string `gorm:"not null" json:"result_create_time" form:"result_create_time"`
 	Result            string `gorm:"not null" json:"result" form:"result"`
 }
 

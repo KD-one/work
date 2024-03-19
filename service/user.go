@@ -23,6 +23,7 @@ type OnlineUserInfo struct {
 // OnlineUserMap 用户在线状态存储
 var OnlineUserMap sync.Map
 
+// 锁
 var mutex sync.Mutex
 
 // UserList 用户列表
@@ -31,29 +32,43 @@ var UserList []model.UserList
 // ClientList 客户端列表
 var ClientList sync.Map
 
-type UserRequestModel struct {
-	Name                string `json:"name" form:"name" description:"用户名"`
-	Password            string `json:"password" form:"password" description:"密码"`
-	UserLevel           int    `json:"user_level" form:"user_level" description:"用户权限"`
-	AppAuth             string `json:"app_auth" form:"app_auth" description:"应用权限"`
-	ParaAuth            string `json:"para_auth" form:"para_auth" description:"参数权限"`
-	Version             int    `json:"version" form:"version" description:"版本号"`
-	ChangeLog           string `json:"changelog" form:"changelog" description:"变更日志"`
-	HostName            string `json:"host_name" form:"host_name" description:"主机名"`
-	AdminMechineName    string `json:"admin_mechine_name" form:"admin_mechine_name" description:"管理员机器名"`
-	Command             string `json:"command" form:"command" description:"命令"`
-	ToClient            string `json:"to_client" form:"to_client" description:"客户端ip"`
-	ToClientMachineName string `json:"to_client_machine_name" form:"to_client_machine_name" description:"客户端机器名"`
+type LoginRequestModel struct {
+	Name     string `json:"Name" form:"Name" description:"用户名"`
+	Password string `json:"Password" form:"Password" description:"密码"`
+	HostName string `json:"HostName" form:"HostName" description:"主机名"`
+}
+
+type DeleteUserModel struct {
+	Name      string `json:"Name" form:"Name" description:"用户名"`
+	Version   int    `json:"Version" form:"Version" description:"版本号"`
+	ChangeLog string `json:"ChangeLog" form:"ChangeLog" description:"变更日志"`
+}
+
+type SendCommandModel struct {
+	AdminMechineName    string `json:"AdminMechineName" form:"AdminMechineName" description:"管理员机器名"`
+	Command             string `json:"Command" form:"Command" description:"命令"`
+	ToClient            string `json:"ToClient" form:"ToClient" description:"客户端ip"`
+	ToClientMachineName string `json:"ToClientMachineName" form:"ToClientMachineName" description:"客户端机器名"`
+}
+
+type AddChangeUserModel struct {
+	Name     string `json:"Name" form:"Name" description:"用户名"`
+	Password string `json:"Password" form:"Password" description:"密码"`
+	//UserLevel int    `json:"UserLevel" form:"UserLevel" description:"用户权限"`
+	AppAuth   string `json:"AppAuth" form:"AppAuth" description:"应用权限"`
+	ParaAuth  string `json:"ParaAuth" form:"ParaAuth" description:"参数权限"`
+	Version   int    `json:"Version" form:"Version" description:"版本号"`
+	ChangeLog string `json:"ChangeLog" form:"ChangeLog" description:"变更日志"`
 }
 
 type ClientRequestModel struct {
-	LabviewVersion    int    `json:"labview_version" form:"labview_version" description:"labview版本号"`
-	EcuVersion        int    `json:"ecu_version" form:"ecu_version" description:"ecu版本号"`
-	SystemStatus      string `json:"system_status" form:"system_status" description:"系统状态"`
-	StartCount        int    `json:"start_count" form:"start_count" description:"启动次数"`
-	FirstErrCode      int    `json:"first_err_code" form:"first_err_code" description:"第一次错误代码"`
-	InstructionId     uint   `json:"instruction_id" form:"instruction_id" description:"指令id"`
-	InstructionResult string `json:"instruction_result" form:"instruction_result" description:"指令结果"`
+	LabviewVersion    int    `json:"LabviewVersion" form:"LabviewVersion" description:"labview版本号"`
+	EcuVersion        int    `json:"EcuVersion" form:"EcuVersion" description:"ecu版本号"`
+	SystemStatus      string `json:"SystemStatus" form:"SystemStatus" description:"系统状态"`
+	StartCount        int    `json:"StartCount" form:"StartCount" description:"启动次数"`
+	FirstErrCode      int    `json:"FirstErrCode" form:"FirstErrCode" description:"第一次错误代码"`
+	InstructionId     uint   `json:"InstructionId" form:"InstructionId" description:"指令id"`
+	InstructionResult string `json:"InstructionResult" form:"InstructionResult" description:"指令结果"`
 }
 
 func OnlineUsers(c *gin.Context) {
@@ -72,7 +87,7 @@ func OnlineUsers(c *gin.Context) {
 }
 
 func Login(c *gin.Context) {
-	var data UserRequestModel
+	var data LoginRequestModel
 	if err := c.ShouldBind(&data); err != nil {
 		c.JSON(400, serializer.Response{
 			Code: 422,
@@ -83,9 +98,7 @@ func Login(c *gin.Context) {
 	name := data.Name
 	password := data.Password
 
-	loginData := "------- 用户请求登录   用户名：" + name + "\n"
-
-	err := common.WriteStringToLog(loginData)
+	err := common.WriteLog(0, fmt.Sprintf("用户请求登录   用户名：%s", name))
 	if err != nil {
 		c.JSON(400, serializer.Response{
 			Code: 400,
@@ -165,30 +178,14 @@ func Login(c *gin.Context) {
 }
 
 func GetUserList(c *gin.Context) {
-	var data UserRequestModel
-	if err := c.ShouldBind(&data); err != nil {
-		c.JSON(400, serializer.Response{
-			Code: 422,
-			Msg:  "参数绑定时出错",
-		})
-		return
-	}
 	adminIdAny, _ := c.Get("userId")
 	adminId := adminIdAny.(uint)
 
 	// 日志记录
-	logData := common.DataToString(adminId, "获取用户列表")
-	err := common.WriteStringToLog(logData)
-	if err != nil {
-		c.JSON(400, serializer.Response{
-			Code: 400,
-			Msg:  err.Error(),
-		})
-		return
-	}
+	common.WriteLog(adminId, "获取用户列表")
 
 	var users []model.User
-	err = dao.DBUserGetTable(adminId, &users)
+	err := dao.DBUserGetTable(adminId, &users)
 	if err != nil {
 		c.JSON(422, serializer.Response{
 			Code: 422,
@@ -243,7 +240,7 @@ func GetUserList(c *gin.Context) {
 }
 
 func AddChangeUser(c *gin.Context) {
-	var data UserRequestModel
+	var data AddChangeUserModel
 	if err := c.ShouldBind(&data); err != nil {
 		c.JSON(400, serializer.Response{
 			Code: 422,
@@ -256,21 +253,7 @@ func AddChangeUser(c *gin.Context) {
 	adminId := adminIdAny.(uint)
 
 	// 日志记录
-	userName := "用户名：" + data.Name
-	userPassword := "密码：" + data.Password
-	userAppAuth := "操作权限：" + data.AppAuth
-	userParaAuth := "参数权限：" + data.ParaAuth
-	userVersion := fmt.Sprintf("版本号：%d", data.Version)
-	userChangeLog := "修改记录：" + data.ChangeLog
-	logData := common.DataToString(adminId, "增加或修改用户", userName, userPassword, userAppAuth, userParaAuth, userVersion, userChangeLog)
-	err := common.WriteStringToLog(logData)
-	if err != nil {
-		c.JSON(400, serializer.Response{
-			Code: 400,
-			Msg:  err.Error(),
-		})
-		return
-	}
+	common.WriteLog(adminId, fmt.Sprintf("增加或修改用户   用户名：%s   密码：%s   操作权限：%s   参数权限：%s   版本号：%d   修改记录：%s", data.Name, data.Password, data.AppAuth, data.ParaAuth, data.Version, data.ChangeLog))
 
 	user := model.User{
 		Name:     data.Name,
@@ -278,7 +261,7 @@ func AddChangeUser(c *gin.Context) {
 		AppAuth:  data.AppAuth,
 		ParaAuth: data.ParaAuth,
 	}
-	err = dao.DBUserAddUpdate(adminId, user, data.Version, data.ChangeLog)
+	err := dao.DBUserAddUpdate(adminId, user, data.Version, data.ChangeLog)
 	if err != nil {
 		c.JSON(422, serializer.Response{
 			Code: 422,
@@ -293,7 +276,7 @@ func AddChangeUser(c *gin.Context) {
 }
 
 func DeleteUser(c *gin.Context) {
-	var data UserRequestModel
+	var data DeleteUserModel
 	if err := c.ShouldBind(&data); err != nil {
 		c.JSON(400, serializer.Response{
 			Code: 422,
@@ -305,20 +288,9 @@ func DeleteUser(c *gin.Context) {
 	adminId := adminIdAny.(uint)
 
 	// 日志记录
-	userName := "用户名：" + data.Name
-	userVersion := fmt.Sprintf("版本号：%d", data.Version)
-	userChangeLog := "修改记录：" + data.ChangeLog
-	logData := common.DataToString(adminId, "删除用户", userName, userVersion, userChangeLog)
-	err := common.WriteStringToLog(logData)
-	if err != nil {
-		c.JSON(400, serializer.Response{
-			Code: 400,
-			Msg:  err.Error(),
-		})
-		return
-	}
+	common.WriteLog(adminId, fmt.Sprintf("删除用户   用户名：%s   版本号：%d   修改记录：%s", data.Name, data.Version, data.ChangeLog))
 
-	err = dao.DBUserDelete(adminId, data.Name, data.Version, data.ChangeLog)
+	err := dao.DBUserDelete(adminId, data.Name, data.Version, data.ChangeLog)
 	if err != nil {
 		c.JSON(422, serializer.Response{
 			Code: 422,
@@ -373,8 +345,9 @@ func GetDBTableVersion(c *gin.Context) {
 	})
 }
 
+// SendCommand 管理端发送指令
 func SendCommand(c *gin.Context) {
-	var data UserRequestModel
+	var data SendCommandModel
 	if err := c.ShouldBind(&data); err != nil {
 		c.JSON(400, serializer.Response{
 			Code: 422,
@@ -386,8 +359,8 @@ func SendCommand(c *gin.Context) {
 	adminId := adminIdAny.(uint)
 
 	// 记录日志
-	logData := fmt.Sprintf("发送命令；%s   管理端机器名：%s   客户：%s   客户端机器名：%s", data.Command, data.AdminMechineName, data.ToClient, data.ToClientMachineName)
-	err := common.WriteLog(adminId, "发送命令", logData)
+	logData := fmt.Sprintf("发送命令   发送命令；%s   管理端机器名：%s   客户：%s   客户端机器名：%s", data.Command, data.AdminMechineName, data.ToClient, data.ToClientMachineName)
+	err := common.WriteLog(adminId, logData)
 	if err != nil {
 		c.JSON(400, serializer.Response{
 			Code: 400,
@@ -428,6 +401,7 @@ func SendCommand(c *gin.Context) {
 	})
 }
 
+// Keepalive 客户端发送心跳并携带数据
 func Keepalive(c *gin.Context) {
 	var data ClientRequestModel
 	if err := c.ShouldBind(&data); err != nil {
@@ -440,8 +414,8 @@ func Keepalive(c *gin.Context) {
 	clientIdAny, _ := c.Get("userId")
 	clientId := clientIdAny.(uint)
 	// 记录日志
-	logData := fmt.Sprintf("labview版本号：%d   ECU版本号；%d   系统状态：%s   启动次数：%d   第一次错误代码：%d", data.LabviewVersion, data.EcuVersion, data.SystemStatus, data.StartCount, data.FirstErrCode)
-	err := common.WriteLog(clientId, "keepAlive", logData)
+	logData := fmt.Sprintf("keepAlive   labview版本号：%d   ECU版本号；%d   系统状态：%s   启动次数：%d   第一次错误代码：%d", data.LabviewVersion, data.EcuVersion, data.SystemStatus, data.StartCount, data.FirstErrCode)
+	err := common.WriteLog(clientId, logData)
 	if err != nil {
 		c.JSON(400, serializer.Response{
 			Code: 400,
@@ -470,6 +444,7 @@ func Keepalive(c *gin.Context) {
 			return
 		}
 		instruction.Result = data.InstructionResult
+		instruction.ResultCreateTime = time.Now().Format("2006-01-02 15:04:05")
 		err = dao.UpdateInstructionRecord(data.InstructionId, instruction)
 		if err != nil {
 			c.JSON(400, serializer.Response{
@@ -498,7 +473,7 @@ func Keepalive(c *gin.Context) {
 	// 查找全局client列表中是否存在该client，不存在直接返回空内容，存在则返回内容并删除client列表中的该client
 	i, ok := ClientList.Load(clientName)
 	if !ok {
-		c.JSON(400, serializer.Response{
+		c.JSON(200, serializer.Response{
 			Code: 200,
 			Msg:  "success",
 			Data: model.ClientList{

@@ -9,15 +9,25 @@ import (
 	"test/serializer"
 )
 
-type ParaRequestModel struct {
-	TableName string           `json:"table_name" form:"table_name" description:"para_auth表名"`
-	ParaData  []model.Paraauth `json:"para_data" form:"para_data" description:"para_auth数据"`
-	Version   int              `json:"version" form:"version" description:"版本号"`
-	ChangeLog string           `json:"changelog" form:"changelog" description:"变更日志"`
+type GetParaTableModel struct {
+	TableName string `json:"TableName" form:"TableName" description:"para_auth表名"`
+}
+
+type DeleteParaModel struct {
+	TableName string `json:"TableName" form:"TableName" description:"para_auth表名"`
+	Version   int    `json:"Version" form:"Version" description:"版本号"`
+	ChangeLog string `json:"ChangeLog" form:"ChangeLog" description:"变更日志"`
+}
+
+type AddChangeParaModel struct {
+	TableName string           `json:"TableName" form:"TableName" description:"para_auth表名"`
+	ParaData  []model.Paraauth `json:"ParaData" form:"ParaData" description:"para_auth数据"`
+	Version   int              `json:"Version" form:"Version" description:"版本号"`
+	ChangeLog string           `json:"ChangeLog" form:"ChangeLog" description:"变更日志"`
 }
 
 func GetParaTable(c *gin.Context) {
-	var data ParaRequestModel
+	var data GetParaTableModel
 	if err := c.ShouldBind(&data); err != nil {
 		c.JSON(400, serializer.Response{
 			Code: 422,
@@ -30,18 +40,11 @@ func GetParaTable(c *gin.Context) {
 	adminId := adminIdAny.(uint)
 
 	// 日志记录
-	tableName := "表名：" + data.TableName
-	logData := common.DataToString(adminId, "获取参数表信息", tableName)
-	err := common.WriteStringToLog(logData)
-	if err != nil {
-		c.JSON(400, serializer.Response{
-			Code: 400,
-			Msg:  err.Error(),
-		})
-		return
-	}
+	common.WriteLog(adminId, "获取参数表信息   表名："+data.TableName)
 
-	err = dao.DBParaAuthGetTable(adminId, data.TableName, &data.ParaData)
+	var paraData []model.Paraauth
+
+	err := dao.DBParaAuthGetTable(adminId, data.TableName, &paraData)
 	if err != nil {
 		c.JSON(400, serializer.Response{
 			Code: 400,
@@ -53,37 +56,21 @@ func GetParaTable(c *gin.Context) {
 		Code: 200,
 		Msg:  "success",
 		Data: gin.H{
-			"paraTableData": data.ParaData,
+			"paraTableData": paraData,
 		},
 	})
 }
 
 func GetParaAuthList(c *gin.Context) {
-	var data ParaRequestModel
-	if err := c.ShouldBind(&data); err != nil {
-		c.JSON(400, serializer.Response{
-			Code: 422,
-			Msg:  "参数绑定时出错",
-		})
-		return
-	}
 	adminIdAny, _ := c.Get("userId")
 	adminId := adminIdAny.(uint)
 
 	// 日志记录
-	logData := common.DataToString(adminId, "获取参数权限表列表")
-	err := common.WriteStringToLog(logData)
-	if err != nil {
-		c.JSON(400, serializer.Response{
-			Code: 400,
-			Msg:  err.Error(),
-		})
-		return
-	}
+	common.WriteLog(adminId, "获取参数权限表列表")
 
 	var paraTableNames []string
 
-	err = dao.DBParaAuthGetTableList(adminId, &paraTableNames)
+	err := dao.DBParaAuthGetTableList(adminId, &paraTableNames)
 	if err != nil {
 		c.JSON(400, serializer.Response{
 			Code: 400,
@@ -101,7 +88,7 @@ func GetParaAuthList(c *gin.Context) {
 }
 
 func AddChangePara(c *gin.Context) {
-	var data ParaRequestModel
+	var data AddChangeParaModel
 	if err := c.ShouldBind(&data); err != nil {
 		c.JSON(400, serializer.Response{
 			Code: 422,
@@ -113,21 +100,9 @@ func AddChangePara(c *gin.Context) {
 	adminId := adminIdAny.(uint)
 
 	// 日志记录
-	tableName := "表名：" + data.TableName
-	version := fmt.Sprintf("版本号：%d", data.Version)
-	userChangeLog := "修改记录：" + data.ChangeLog
-	tableData := "数据：" + fmt.Sprintf("%+v", data.ParaData)
-	logData := common.DataToString(adminId, "添加或修改参数权限表", tableName, version, userChangeLog, tableData)
-	err := common.WriteStringToLog(logData)
-	if err != nil {
-		c.JSON(400, serializer.Response{
-			Code: 400,
-			Msg:  err.Error(),
-		})
-		return
-	}
+	common.WriteLog(adminId, fmt.Sprintf("添加或修改参数权限表   表名：%s   版本号：%d   修改记录：%s   数据：%+v", data.TableName, data.Version, data.ChangeLog, data.ParaData))
 
-	err = dao.DBParaAuthAddUpdateTable(adminId, data.TableName, data.ParaData, data.Version, data.ChangeLog)
+	err := dao.DBParaAuthAddUpdateTable(adminId, data.TableName, data.ParaData, data.Version, data.ChangeLog)
 	if err != nil {
 		c.JSON(400, serializer.Response{
 			Code: 400,
@@ -142,7 +117,7 @@ func AddChangePara(c *gin.Context) {
 }
 
 func DeletePara(c *gin.Context) {
-	var data ParaRequestModel
+	var data DeleteParaModel
 	if err := c.ShouldBind(&data); err != nil {
 		c.JSON(400, serializer.Response{
 			Code: 422,
@@ -154,20 +129,9 @@ func DeletePara(c *gin.Context) {
 	adminId := adminIdAny.(uint)
 
 	// 日志记录
-	tableName := "表名：" + data.TableName
-	version := fmt.Sprintf("版本号：%d", data.Version)
-	userChangeLog := "修改记录：" + data.ChangeLog
-	logData := common.DataToString(adminId, "删除参数权限表", tableName, version, userChangeLog)
-	err := common.WriteStringToLog(logData)
-	if err != nil {
-		c.JSON(400, serializer.Response{
-			Code: 400,
-			Msg:  err.Error(),
-		})
-		return
-	}
+	common.WriteLog(adminId, fmt.Sprintf("删除参数权限表   表名：%s   版本号：%d   修改记录：%s", data.TableName, data.Version, data.ChangeLog))
 
-	err = dao.DBParaAuthDeleteTable(adminId, data.TableName, data.Version, data.ChangeLog)
+	err := dao.DBParaAuthDeleteTable(adminId, data.TableName, data.Version, data.ChangeLog)
 	if err != nil {
 		c.JSON(400, serializer.Response{
 			Code: 400,
