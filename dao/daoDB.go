@@ -172,9 +172,13 @@ func DBAppAuthGetUserAuth(adminId uint, appAuth *model.Appauth) error {
 	if res.RowsAffected == 0 {
 		return errors.New("DBAppAuthGetUserAuth 用户不存在")
 	} else {
-		err := common.DB.Model(&model.Appauth{}).Where("name = ?", u.AppAuth).First(&appAuth).Error
-		if err != nil {
-			return errors.New("DBAppAuthGetUserAuth appAuth不存在")
+		if u.UserLevel < 2 {
+			return errors.New("DBAppAuthGetUserAuth 权限不足")
+		} else {
+			err := common.DB.Model(&model.Appauth{}).Where("name = ?", u.AppAuth).First(&appAuth).Error
+			if err != nil {
+				return errors.New("DBAppAuthGetUserAuth appAuth不存在")
+			}
 		}
 	}
 	return nil
@@ -208,13 +212,13 @@ func DBAppAuthAddUpdate(adminId uint, appAuth model.Appauth, version int, change
 		if admin.UserLevel < 2 {
 			return errors.New("DBAppAuthAddUpdate 权限不足")
 		} else {
-			r := common.DB.Model(&model.Appauth{}).Where("name = ?", appAuth.Name).First(&model.Appauth{})
+			r := common.DB.Model(&model.Appauth{}).Where("name = ?", appAuth.AuthName).First(&model.Appauth{})
 			if r.RowsAffected == 0 {
 				if common.DB.Model(&model.Appauth{}).Create(&appAuth).Error != nil {
 					return errors.New("DBAppAuthAddUpdate 添加失败")
 				}
 			} else {
-				if common.DB.Model(&model.Appauth{}).Where("name = ?", appAuth.Name).Updates(&appAuth).Error != nil {
+				if common.DB.Model(&model.Appauth{}).Where("name = ?", appAuth.AuthName).Updates(&appAuth).Error != nil {
 					return errors.New("DBAppAuthAddUpdate 更新失败")
 				}
 			}
@@ -442,6 +446,115 @@ func DBTableCheckVer(version int) error {
 			return errors.New("DBTableCheckVer 获取最新版本记录时出错")
 		}
 		return errors.New(fmt.Sprintf("DBTableCheckVer 数据已被%s在%s时间修改，修改内容为%s", versionRecord.User, versionRecord.CreatedAt, versionRecord.ChangeLog))
+	}
+	return nil
+}
+
+func DBGetLimitVersionTable(adminId uint, tableVersion *[]model.Tablever) error {
+	var admin model.User
+	res := common.DB.Model(model.User{}).Where("id = ?", adminId).First(&admin)
+	if res.RowsAffected == 0 {
+		return errors.New("DBGetLimitVersionTable 用户不存在")
+	} else {
+		if admin.UserLevel < 2 {
+			return errors.New("DBGetLimitVersionTable 权限不足")
+		} else {
+			if common.DB.Model(model.Tablever{}).Order("ver desc").Limit(viper.GetInt("versionRecord.limit")).Find(&tableVersion).Error != nil {
+				return errors.New("DBGetLimitVersionTable 获取版本记录时出错")
+			}
+		}
+	}
+	return nil
+}
+
+func DBGetLimitClientLogTable(adminId uint, clientLog *[]model.ClientLog) error {
+	var admin model.User
+	res := common.DB.Model(model.User{}).Where("id = ?", adminId).First(&admin)
+	if res.RowsAffected == 0 {
+		return errors.New("DBGetLimitClientLogTable 用户不存在")
+	} else {
+		if admin.UserLevel < 2 {
+			return errors.New("DBGetLimitClientLogTable 权限不足")
+		} else {
+			if common.DB.Model(model.ClientLog{}).Order("id desc").Limit(viper.GetInt("versionRecord.limit")).Find(&clientLog).Error != nil {
+				return errors.New("DBGetLimitClientLogTable 获取版本记录时出错")
+			}
+		}
+	}
+	return nil
+}
+
+func DBCheckECUFileMapRecordExists(branch, version uint) int64 {
+	m := common.DB.Where(map[string]interface{}{
+		"branch":  branch,
+		"version": version,
+	}).First(&model.EcuFileMap{})
+	return m.RowsAffected
+}
+
+func DBCreateECUFileMapRecord(adminId uint, ecuFileMap model.EcuFileMap) error {
+	var admin model.User
+	res := common.DB.Model(model.User{}).Where("id = ?", adminId).First(&admin)
+	if res.RowsAffected == 0 {
+		return errors.New("DBCreateECUFileMapRecord 用户不存在")
+	} else {
+		if admin.UserLevel < 2 {
+			return errors.New("DBCreateECUFileMapRecord 权限不足")
+		} else {
+			err := common.DB.Create(&ecuFileMap).Error
+			if err != nil {
+				return errors.New("DBCreateECUFileMapRecord 插入记录时出错")
+			}
+		}
+	}
+	return nil
+}
+
+func DBWhereBuildFileFindRecord(buildFile string, ecuFileMap *model.EcuFileMap) error {
+	if common.DB.Model(&model.EcuFileMap{}).Where("build_file = ?", buildFile).First(&ecuFileMap).Error != nil {
+		return errors.New("DBWhereBuildFileFindRecord 查找记录时出错")
+	}
+	return nil
+}
+
+func DBFindECUFileMapRecord(adminId, branch, version uint, ecuFileMap *model.EcuFileMap) error {
+	var admin model.User
+	res := common.DB.Model(model.User{}).Where("id = ?", adminId).First(&admin)
+	if res.RowsAffected == 0 {
+		return errors.New("DBFindECUFileMapRecord 用户不存在")
+	} else {
+		if admin.UserLevel < 2 {
+			return errors.New("DBFindECUFileMapRecord 权限不足")
+		} else {
+			err := common.DB.Model(&model.EcuFileMap{}).Where("branch = ? AND version = ?", branch, version).First(&ecuFileMap).Error
+			if err != nil {
+				return errors.New(fmt.Sprintf("DBFindECUFileMapRecord 查找记录时出错 err:%s", err.Error()))
+			}
+		}
+	}
+	return nil
+}
+
+func DBFindECUFileMapRecordNoAuth(branch, version uint, ecuFileMap *model.EcuFileMap) error {
+	err := common.DB.Model(&model.EcuFileMap{}).Where("branch = ? AND version = ?", branch, version).First(&ecuFileMap).Error
+	if err != nil {
+		return errors.New(fmt.Sprintf("DBFindECUFileMapRecord 查找记录时出错 err:%s", err.Error()))
+	}
+	return nil
+}
+
+func DBCheckGtCurrentVersion(branch, version uint, ecuFileMap *[]model.EcuFileMap) error {
+	err := common.DB.Model(&model.EcuFileMap{}).Where("branch = ? AND version > ?", branch, version).Find(&ecuFileMap).Error
+	if err != nil {
+		return errors.New("DBCheckGtCurrentVersion 检查版本时出错")
+	}
+	return nil
+}
+
+func DBClientLogAdd(cLog model.PostClientLogModel) error {
+	err := common.DB.Create(&cLog).Error
+	if err != nil {
+		return errors.New("DBClientLogAdd 插入数据时出错")
 	}
 	return nil
 }

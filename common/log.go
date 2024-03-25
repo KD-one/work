@@ -86,7 +86,7 @@ func WriteStringToLog(data string) error {
 	return nil
 }
 
-func WriteLog(userId uint, describe string) error {
+func WriteLog(userId uint, describe string) {
 	userIdString := strconv.Itoa(int(userId))
 	t := time.Now().Format("2006-01-02 15:04:05")
 	data := "[ " + userIdString + " ]   " + t + "   " + describe
@@ -98,13 +98,10 @@ func WriteLog(userId uint, describe string) error {
 	f, er := os.OpenFile("log/"+t+".log", os.O_CREATE|os.O_APPEND|os.O_RDWR, os.ModePerm)
 	if er != nil {
 		fmt.Println("open file error")
-		return errors.New("open file error")
 	}
 	defer f.Close()
 	_, err = f.WriteString(data)
 	if err != nil {
 		fmt.Println("write file error")
-		return errors.New("write file error")
 	}
-	return nil
 }

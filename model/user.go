@@ -12,6 +12,6 @@ type User struct {
 }
 
 type ClientList struct {
-	InstructionId     uint   `json:"instruction_id"`
-	InstructionResult string `json:"instruction_result"`
+	InstructionId     uint   `json:"InstructionId"`
+	InstructionResult string `json:"InstructionResult"`
 }

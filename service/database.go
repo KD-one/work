@@ -101,7 +101,7 @@ func CreateTable(c *gin.Context) {
 	c.JSON(200, gin.H{"message": fmt.Sprintf("Table `%s` created", receivedJson.TableName)})
 }
 
-// InsertOrUpdate 创建或更新数据，创建新表后(不包括paraauth_开头的表)需要手动在此函数中添加对应数据表的case,并手动定义相应结构体
+// InsertOrUpdate 创建或更新数据，创建新表后(仅限不包括paraauth_开头的表)需要手动在此函数中添加对应数据表的case,并手动定义相应结构体
 func InsertOrUpdate(c *gin.Context) {
 
 	table := c.Query("table")

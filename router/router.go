@@ -22,6 +22,18 @@ func RouterList(router *gin.Engine) {
 	router.POST("/getParaTable", middleware.ParseToken(), service.GetParaTable)
 	router.POST("/addChangePara", middleware.ParseToken(), service.AddChangePara)
 	router.POST("/deletePara", middleware.ParseToken(), service.DeletePara)
+	// appAuth
+	router.POST("/addChangeAppAuth", middleware.ParseToken(), service.AddChangeAppAuth)
+	router.GET("/getAppAuthTable", middleware.ParseToken(), service.GetAppAuthTable)
+	router.GET("/getAppAuthByName", middleware.ParseToken(), service.GetAppAuthByName)
+	//  file
+	router.POST("/ECUSoftwareUpload", middleware.ParseToken(), service.UploadECUFile)
+	router.POST("/ECUSoftwareDownload", middleware.ParseToken(), service.DownloadFile)
+	router.POST("/ECUSoftwareCheckNewVer", middleware.ParseToken(), service.ECUSoftwareCheckNewVer)
+	// log
+	router.GET("/getAdminLog", middleware.ParseToken(), service.GetAdminLog)
+	router.GET("/getClientLog", middleware.ParseToken(), service.GetClientLog)
+	router.POST("/postClientLog", middleware.ParseToken(), service.PostClientLog)
 	// 获取最新表操作记录
 	router.GET("/getDBTableVersion", middleware.ParseToken(), service.GetDBTableVersion)
 
@@ -56,8 +68,8 @@ func RouterList(router *gin.Engine) {
 	router.POST("/register", middleware.AuthMiddleware(), service.Register)
 
 	// 多文件上传（需要权限）
-	router.GET("/toUpload", FileRelated.ToFileUpload)
-	router.POST("/uploads", middleware.AuthMiddleware(), FileRelated.UploadFiles)
+	//router.GET("/toUpload", FileRelated.ToFileUpload)
+	//router.POST("/uploads", middleware.AuthMiddleware(), FileRelated.UploadFiles)
 
 	// 所有文件列表页面（需要权限）
 	router.GET("/toDownload", FileRelated.ToDownload)

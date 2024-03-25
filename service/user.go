@@ -87,10 +87,21 @@ func OnlineUsers(c *gin.Context) {
 }
 
 func Login(c *gin.Context) {
+
+	//// TODO： 前端传输过来的数据为加密数据并置于body中，取出加密内容并解密后，将解密内容塞回body中（暂时用不到）
+	//// 从c.Request.Body读出body数据并存入bodyBytes变量中
+	//bodyBytes, _ := io.ReadAll(c.Request.Body)
+	//// 将bodyBytes变量内容转换为字符串
+	//bodyString := string(bodyBytes)
+	//// 解密bodyString字符串
+	//// ------此处执行解密函数------
+	//// 使用解密字符串的[]byte类型，重置body
+	//c.Request.Body = io.NopCloser(bytes.NewBuffer([]byte(bodyString)))
+
 	var data LoginRequestModel
 	if err := c.ShouldBind(&data); err != nil {
 		c.JSON(400, serializer.Response{
-			Code: 422,
+			Code: 400,
 			Msg:  "参数绑定时出错",
 		})
 		return
@@ -98,14 +109,9 @@ func Login(c *gin.Context) {
 	name := data.Name
 	password := data.Password
 
-	err := common.WriteLog(0, fmt.Sprintf("用户请求登录   用户名：%s", name))
-	if err != nil {
-		c.JSON(400, serializer.Response{
-			Code: 400,
-			Msg:  err.Error(),
-		})
-		return
-	}
+	fmt.Printf("用户请求登录   用户名：%s 密码：%s \n", name, password)
+	common.WriteLog(0, fmt.Sprintf("用户请求登录   用户名：%s", name))
+
 	if len(name) == 0 {
 		c.JSON(422, serializer.Response{
 			Code: 422,
@@ -123,7 +129,7 @@ func Login(c *gin.Context) {
 	}
 
 	var userId uint
-	err = dao.DBUserLogin(name, password, &userId)
+	err := dao.DBUserLogin(name, password, &userId)
 	if err != nil {
 		c.JSON(422, serializer.Response{
 			Code: 422,
@@ -136,7 +142,7 @@ func Login(c *gin.Context) {
 	token, err := common.ReleaseToken(userId)
 	if err != nil {
 		c.JSON(500, serializer.Response{
-			Code: 422,
+			Code: 500,
 			Msg:  "token生成失败",
 		})
 		return
@@ -243,7 +249,7 @@ func AddChangeUser(c *gin.Context) {
 	var data AddChangeUserModel
 	if err := c.ShouldBind(&data); err != nil {
 		c.JSON(400, serializer.Response{
-			Code: 422,
+			Code: 400,
 			Msg:  "参数绑定时出错",
 		})
 		return
@@ -279,7 +285,7 @@ func DeleteUser(c *gin.Context) {
 	var data DeleteUserModel
 	if err := c.ShouldBind(&data); err != nil {
 		c.JSON(400, serializer.Response{
-			Code: 422,
+			Code: 400,
 			Msg:  "参数绑定时出错",
 		})
 		return
@@ -350,7 +356,7 @@ func SendCommand(c *gin.Context) {
 	var data SendCommandModel
 	if err := c.ShouldBind(&data); err != nil {
 		c.JSON(400, serializer.Response{
-			Code: 422,
+			Code: 400,
 			Msg:  "参数绑定时出错",
 		})
 		return
@@ -360,14 +366,7 @@ func SendCommand(c *gin.Context) {
 
 	// 记录日志
 	logData := fmt.Sprintf("发送命令   发送命令；%s   管理端机器名：%s   客户：%s   客户端机器名：%s", data.Command, data.AdminMechineName, data.ToClient, data.ToClientMachineName)
-	err := common.WriteLog(adminId, logData)
-	if err != nil {
-		c.JSON(400, serializer.Response{
-			Code: 400,
-			Msg:  err.Error(),
-		})
-		return
-	}
+	common.WriteLog(adminId, logData)
 
 	// 构造指令记录存入数据库
 	adminName := dao.FindUserName(adminId)
@@ -406,7 +405,7 @@ func Keepalive(c *gin.Context) {
 	var data ClientRequestModel
 	if err := c.ShouldBind(&data); err != nil {
 		c.JSON(400, serializer.Response{
-			Code: 422,
+			Code: 400,
 			Msg:  "参数绑定时出错",
 		})
 		return
@@ -415,27 +414,14 @@ func Keepalive(c *gin.Context) {
 	clientId := clientIdAny.(uint)
 	// 记录日志
 	logData := fmt.Sprintf("keepAlive   labview版本号：%d   ECU版本号；%d   系统状态：%s   启动次数：%d   第一次错误代码：%d", data.LabviewVersion, data.EcuVersion, data.SystemStatus, data.StartCount, data.FirstErrCode)
-	err := common.WriteLog(clientId, logData)
-	if err != nil {
-		c.JSON(400, serializer.Response{
-			Code: 400,
-			Msg:  err.Error(),
-		})
-		return
-	}
+	common.WriteLog(clientId, logData)
+
 	// 根据指令id更新记录的指令结果
 	var instruction model.Instruction
 	if data.InstructionId == 0 {
-		err = common.WriteLog(clientId, "指令id不存在")
-		if err != nil {
-			c.JSON(400, serializer.Response{
-				Code: 400,
-				Msg:  err.Error(),
-			})
-			return
-		}
+		common.WriteLog(clientId, "指令id不存在")
 	} else {
-		err = dao.FindInstruction(data.InstructionId, &instruction)
+		err := dao.FindInstruction(data.InstructionId, &instruction)
 		if err != nil {
 			c.JSON(400, serializer.Response{
 				Code: 400,

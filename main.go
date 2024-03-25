@@ -34,11 +34,11 @@ func main() {
 	// 创建默认路由
 	r := gin.Default()
 
-	// 注册全局模板
-	r.LoadHTMLGlob("template/**/*")
-
-	// 配置静态文件服务
-	r.Static("/images", "./images")
+	//// 注册全局模板
+	//r.LoadHTMLGlob("template/**/*")
+	//
+	//// 配置静态文件服务
+	//r.Static("/images", "./images")
 
 	// 注册路由
 	router.RouterList(r)

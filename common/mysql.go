@@ -40,8 +40,8 @@ func InitDB() {
 	//var t model.Tablever
 	//_ = db.AutoMigrate(&t)
 
-	var i model.Instruction
-	_ = db.AutoMigrate(&i)
+	var c model.Appauth
+	_ = db.AutoMigrate(&c)
 
 	DB = db
 }

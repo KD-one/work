@@ -8,3 +8,5 @@ robot:
   monitor: https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=8fd6e912-468b-4cd5-bca5-fc4259783f7d
 user:
   expiration: 20
+versionRecord:
+  limit: 1000  # 限制返回的版本记录数

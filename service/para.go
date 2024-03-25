@@ -30,7 +30,7 @@ func GetParaTable(c *gin.Context) {
 	var data GetParaTableModel
 	if err := c.ShouldBind(&data); err != nil {
 		c.JSON(400, serializer.Response{
-			Code: 422,
+			Code: 400,
 			Msg:  "参数绑定时出错",
 		})
 		return
@@ -91,7 +91,7 @@ func AddChangePara(c *gin.Context) {
 	var data AddChangeParaModel
 	if err := c.ShouldBind(&data); err != nil {
 		c.JSON(400, serializer.Response{
-			Code: 422,
+			Code: 400,
 			Msg:  "参数绑定时出错",
 		})
 		return
@@ -120,7 +120,7 @@ func DeletePara(c *gin.Context) {
 	var data DeleteParaModel
 	if err := c.ShouldBind(&data); err != nil {
 		c.JSON(400, serializer.Response{
-			Code: 422,
+			Code: 400,
 			Msg:  "参数绑定时出错",
 		})
 		return
