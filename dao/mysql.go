@@ -6,7 +6,7 @@ import (
 	"gorm.io/gorm"
 )
 
-var DB *gorm.DB
+var dB *gorm.DB
 
 func InitDB() {
 	//host := "127.0.0.1"
@@ -42,5 +42,5 @@ func InitDB() {
 	//var c model.Appauth
 	//_ = db.AutoMigrate(&c)
 
-	DB = db
+	dB = db
 }
