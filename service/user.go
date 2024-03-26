@@ -63,12 +63,16 @@ type AddChangeUserModel struct {
 
 type ClientRequestModel struct {
 	LabviewVersion    int    `json:"LabviewVersion" form:"LabviewVersion" description:"labview版本号"`
-	EcuVersion        int    `json:"EcuVersion" form:"EcuVersion" description:"ecu版本号"`
+	ECUSWName         string `json:"ECUSWName" form:"ECUSWName" description:"ecu版本号"`
 	SystemStatus      string `json:"SystemStatus" form:"SystemStatus" description:"系统状态"`
 	StartCount        int    `json:"StartCount" form:"StartCount" description:"启动次数"`
 	FirstErrCode      int    `json:"FirstErrCode" form:"FirstErrCode" description:"第一次错误代码"`
 	InstructionId     uint   `json:"InstructionId" form:"InstructionId" description:"指令id"`
 	InstructionResult string `json:"InstructionResult" form:"InstructionResult" description:"指令结果"`
+	FCCurr            int    `json:"FCCurr" form:"FCCurr" description:"FCCurr"`
+	FCCoolOutT        int    `json:"FCCoolOutT" form:"FCCoolOutT" description:"FCCoolOutT"`
+	RunHours          int    `json:"RunHours" form:"RunHours" description:"运行小时数"`
+	LabviewBranch     int    `json:"LabviewBranch" form:"LabviewBranch" description:"labview分支"`
 }
 
 func OnlineUsers(c *gin.Context) {
@@ -109,7 +113,7 @@ func Login(c *gin.Context) {
 	name := data.Name
 	password := data.Password
 
-	fmt.Printf("用户请求登录   用户名：%s 密码：%s \n", name, password)
+	fmt.Printf("用户请求登录   用户名：%s 密码：%s HostName: %s \n", name, password, data.HostName)
 	common.WriteLog(0, fmt.Sprintf("用户请求登录   用户名：%s", name))
 
 	if len(name) == 0 {
@@ -153,7 +157,7 @@ func Login(c *gin.Context) {
 	for i := 0; i < len(UserList); i++ {
 		if UserList[i].Name == name {
 
-			UserList[i].Online = true
+			UserList[i].Online = "Online"
 			UserList[i].Expiration = time.Now().Add(expireTime * time.Second)
 			UserList[i].HostName = data.HostName
 
@@ -186,7 +190,6 @@ func Login(c *gin.Context) {
 func GetUserList(c *gin.Context) {
 	adminIdAny, _ := c.Get("userId")
 	adminId := adminIdAny.(uint)
-
 	// 日志记录
 	common.WriteLog(adminId, "获取用户列表")
 
@@ -207,7 +210,6 @@ func GetUserList(c *gin.Context) {
 		exist := false
 		for i := 0; i < len(UserList); i++ {
 			if user.Name == UserList[i].Name {
-
 				UserList[i].AppAuth = user.AppAuth
 				UserList[i].ParaAuth = user.ParaAuth
 
@@ -391,9 +393,6 @@ func SendCommand(c *gin.Context) {
 		InstructionResult: data.Command,
 	})
 
-	fmt.Println("ClientList: ------------", ClientList, "----------------")
-	fmt.Println("UserList: ------------", UserList, "----------------")
-
 	c.JSON(200, serializer.Response{
 		Code: 200,
 		Msg:  "success",
@@ -413,7 +412,7 @@ func Keepalive(c *gin.Context) {
 	clientIdAny, _ := c.Get("userId")
 	clientId := clientIdAny.(uint)
 	// 记录日志
-	logData := fmt.Sprintf("keepAlive   labview版本号：%d   ECU版本号；%d   系统状态：%s   启动次数：%d   第一次错误代码：%d", data.LabviewVersion, data.EcuVersion, data.SystemStatus, data.StartCount, data.FirstErrCode)
+	logData := fmt.Sprintf("keepAlive   labview版本号：%d   ECU版本号；%s   系统状态：%s   启动次数：%d   第一次错误代码：%d", data.LabviewVersion, data.ECUSWName, data.SystemStatus, data.StartCount, data.FirstErrCode)
 	common.WriteLog(clientId, logData)
 
 	// 根据指令id更新记录的指令结果
@@ -442,14 +441,23 @@ func Keepalive(c *gin.Context) {
 	}
 	clientName := dao.FindUserName(clientId)
 	expireTime := viper.GetDuration("user.expiration")
-	fmt.Println("UserList: ------------", UserList, "----------------")
-	// 更新客户端过期时间
+
+	// 更新客户端过期时间等信息
 	mutex.Lock()
 	for i := 0; i < len(UserList); i++ {
 		if UserList[i].Name == clientName {
 
-			UserList[i].Online = true
+			UserList[i].Online = "Online"
 			UserList[i].Expiration = time.Now().Add(expireTime * time.Second)
+			UserList[i].SystemStatus = data.SystemStatus
+			UserList[i].RunHours = data.RunHours
+			UserList[i].FCCurr = data.FCCurr
+			UserList[i].FCCoolOutT = data.FCCoolOutT
+			UserList[i].LabviewBranch = data.LabviewBranch
+			UserList[i].LabviewVersion = data.LabviewVersion
+			UserList[i].StartCount = data.StartCount
+			UserList[i].FirstErrCode = data.FirstErrCode
+			UserList[i].ECUSWName = data.ECUSWName
 
 			break
 		}
@@ -471,8 +479,7 @@ func Keepalive(c *gin.Context) {
 	}
 	ins := i.(model.ClientList)
 	ClientList.Delete(clientName)
-	fmt.Println("ClientList: ------------", ClientList, "----------------")
-	fmt.Println("UserList: ------------", UserList, "----------------")
+
 	c.JSON(200, serializer.Response{
 		Code: 200,
 		Msg:  "success",
@@ -494,9 +501,9 @@ func CheckUsersExpiration() {
 		for i := range UserList {
 			user := &UserList[i]
 			// 如果用户在线且已经过期
-			if user.Online && user.Expiration.Before(now) {
+			if user.Online == "Online" && user.Expiration.Before(now) {
 				// 将 Online 字段设为 false
-				user.Online = false
+				user.Online = ""
 			}
 		}
 		mutex.Unlock()

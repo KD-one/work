@@ -175,9 +175,27 @@ func DBAppAuthGetUserAuth(adminId uint, appAuth *model.Appauth) error {
 		if u.UserLevel < 2 {
 			return errors.New("DBAppAuthGetUserAuth 权限不足")
 		} else {
-			err := common.DB.Model(&model.Appauth{}).Where("name = ?", u.AppAuth).First(&appAuth).Error
+			err := common.DB.Model(&model.Appauth{}).Where("auth_name = ?", u.AppAuth).First(&appAuth).Error
 			if err != nil {
 				return errors.New("DBAppAuthGetUserAuth appAuth不存在")
+			}
+		}
+	}
+	return nil
+}
+
+func DBFindAppAuthByName(adminId uint, authName string, appAuth *model.Appauth) error {
+	var admin model.User
+	res := common.DB.Model(model.User{}).Where("id = ?", adminId).First(&admin)
+	if res.RowsAffected == 0 {
+		return errors.New("DBFindAppAuthByName 用户不存在")
+	} else {
+		if admin.UserLevel < 2 {
+			return errors.New("DBFindAppAuthByName 权限不足")
+		} else {
+			err := common.DB.Model(&model.Appauth{}).Where("auth_name = ?", authName).First(&appAuth).Error
+			if err != nil {
+				return errors.New("DBFindAppAuthByName appAuth不存在")
 			}
 		}
 	}
@@ -212,13 +230,13 @@ func DBAppAuthAddUpdate(adminId uint, appAuth model.Appauth, version int, change
 		if admin.UserLevel < 2 {
 			return errors.New("DBAppAuthAddUpdate 权限不足")
 		} else {
-			r := common.DB.Model(&model.Appauth{}).Where("name = ?", appAuth.AuthName).First(&model.Appauth{})
+			r := common.DB.Model(&model.Appauth{}).Where("auth_name = ?", appAuth.AuthName).First(&model.Appauth{})
 			if r.RowsAffected == 0 {
 				if common.DB.Model(&model.Appauth{}).Create(&appAuth).Error != nil {
 					return errors.New("DBAppAuthAddUpdate 添加失败")
 				}
 			} else {
-				if common.DB.Model(&model.Appauth{}).Where("name = ?", appAuth.AuthName).Updates(&appAuth).Error != nil {
+				if common.DB.Model(&model.Appauth{}).Where("auth_name = ?", appAuth.AuthName).Updates(&appAuth).Error != nil {
 					return errors.New("DBAppAuthAddUpdate 更新失败")
 				}
 			}
@@ -253,7 +271,7 @@ func DBAppAuthDelete(adminId uint, name string, version int, changelog string) e
 
 		// 检查并删除AppAuth记录
 		var existingAppAuth model.Appauth
-		r := common.DB.Model(&model.Appauth{}).Where("name = ?", name).First(&existingAppAuth)
+		r := common.DB.Model(&model.Appauth{}).Where("auth_name = ?", name).First(&existingAppAuth)
 		if r.RowsAffected == 0 {
 			return errors.New("DBAppAuthDelete 记录不存在，请检查输入是否正确")
 		} else {
@@ -272,7 +290,7 @@ func DBParaAuthGetUserAuth(adminId uint, paraAuth *model.Paraauth) error {
 	if res.RowsAffected == 0 {
 		return errors.New("DBParaAuthGetUserAuth 用户不存在")
 	} else {
-		err := common.DB.Model(&model.Paraauth{}).Where("name = ?", u.ParaAuth).First(&paraAuth).Error
+		err := common.DB.Model(&model.Paraauth{}).Where("para_name = ?", u.ParaAuth).First(&paraAuth).Error
 		if err != nil {
 			return errors.New("DBParaAuthGetUserAuth paraAuth不存在")
 		}
@@ -551,11 +569,14 @@ func DBCheckGtCurrentVersion(branch, version uint, ecuFileMap *[]model.EcuFileMa
 	return nil
 }
 
-func DBClientLogAdd(cLog model.PostClientLogModel) error {
+func DBClientLogAdd(cLog model.ClientLog) error {
+	common.DB.Begin()
 	err := common.DB.Create(&cLog).Error
 	if err != nil {
 		return errors.New("DBClientLogAdd 插入数据时出错")
+		common.DB.Rollback()
 	}
+	common.DB.Commit()
 	return nil
 }
 

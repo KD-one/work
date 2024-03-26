@@ -25,7 +25,7 @@ func RouterList(router *gin.Engine) {
 	// appAuth
 	router.POST("/addChangeAppAuth", middleware.ParseToken(), service.AddChangeAppAuth)
 	router.GET("/getAppAuthTable", middleware.ParseToken(), service.GetAppAuthTable)
-	router.GET("/getAppAuthByName", middleware.ParseToken(), service.GetAppAuthByName)
+	router.POST("/getAppAuthByName", middleware.ParseToken(), service.GetAppAuthByName)
 	//  file
 	router.POST("/ECUSoftwareUpload", middleware.ParseToken(), service.UploadECUFile)
 	router.POST("/ECUSoftwareDownload", middleware.ParseToken(), service.DownloadFile)

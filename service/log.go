@@ -12,6 +12,21 @@ import (
 	"test/serializer"
 )
 
+// PostClientLogModel 接受请求参数
+type PostClientLogModel struct {
+	Time      string `json:"Time" form:"Time"`
+	PCName    string `json:"PCName" form:"PCName"`
+	ChangeLog string `json:"ChangeLog" form:"ChangeLog"`
+}
+
+//type GetClientLogResponseModel struct {
+//	Id        uint   `json:"id" form:"id"`
+//	UserName  string `json:"UserName" form:"UserName"`
+//	Time      string `json:"Time" form:"Time"`
+//	PCName    string `json:"PCName" form:"PCName"`
+//	ChangeLog string `json:"ChangeLog" form:"ChangeLog"`
+//}
+
 // ListLogFiles 展示log文件列表
 func ListLogFiles(c *gin.Context) {
 	dirPath := "./log/uploadRecord"
@@ -89,7 +104,7 @@ func GetClientLog(c *gin.Context) {
 }
 
 func PostClientLog(c *gin.Context) {
-	var data model.PostClientLogModel
+	var data PostClientLogModel
 	if err := c.ShouldBind(&data); err != nil {
 		c.JSON(400, serializer.Response{
 			Code: 400,
@@ -99,17 +114,25 @@ func PostClientLog(c *gin.Context) {
 	}
 	adminIdAny, _ := c.Get("userId")
 	adminId := adminIdAny.(uint)
+	adminName := dao.FindUserName(adminId)
 
-	common.WriteLog(adminId, fmt.Sprintf("用户名：%s   主机名：%s   时间：%s   更改日志：%s", data.UserName, data.PCName, data.Time, data.ChangeLog))
+	common.WriteLog(adminId, fmt.Sprintf("用户名：%s   主机名：%s   时间：%s   更改日志：%s", adminName, data.PCName, data.Time, data.ChangeLog))
 
-	if data.UserName == "" || data.PCName == "" || data.Time == "" || data.ChangeLog == "" {
+	if data.PCName == "" || data.Time == "" || data.ChangeLog == "" {
 		c.JSON(400, serializer.Response{
 			Code: 400,
 			Msg:  "参数不能为空",
 		})
 	}
 
-	err := dao.DBClientLogAdd(data)
+	clientlog := model.ClientLog{
+		UserName:  adminName,
+		PCName:    data.PCName,
+		ChangeLog: data.ChangeLog,
+		Time:      data.Time,
+	}
+
+	err := dao.DBClientLogAdd(clientlog)
 	if err != nil {
 		c.JSON(400, serializer.Response{
 			Code: 400,

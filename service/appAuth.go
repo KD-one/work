@@ -22,6 +22,10 @@ type AddChangeAppAuthModel struct {
 	ChangeLog string `json:"ChangeLog" form:"ChangeLog" description:"变更日志"`
 }
 
+type GetAppAuthByNameModel struct {
+	AuthName string `json:"AuthName" form:"AuthName" description:"权限名称"`
+}
+
 func AddChangeAppAuth(c *gin.Context) {
 	var data AddChangeAppAuthModel
 	if err := c.ShouldBind(&data); err != nil {
@@ -86,12 +90,20 @@ func GetAppAuthTable(c *gin.Context) {
 }
 
 func GetAppAuthByName(c *gin.Context) {
+	var data GetAppAuthByNameModel
+	if err := c.ShouldBind(&data); err != nil {
+		c.JSON(400, serializer.Response{
+			Code: 400,
+			Msg:  "参数绑定时出错",
+		})
+		return
+	}
 	adminIdAny, _ := c.Get("userId")
 	adminId := adminIdAny.(uint)
 	common.WriteLog(adminId, "尝试获取当前用户的app权限信息")
 
 	var appAuth model.Appauth
-	err := dao.DBAppAuthGetUserAuth(adminId, &appAuth)
+	err := dao.DBFindAppAuthByName(adminId, data.AuthName, &appAuth)
 	if err != nil {
 		c.JSON(422, serializer.Response{
 			Code: 422,

@@ -4,7 +4,6 @@ import (
 	"github.com/spf13/viper"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
-	"test/model"
 )
 
 var DB *gorm.DB
@@ -40,8 +39,8 @@ func InitDB() {
 	//var t model.Tablever
 	//_ = db.AutoMigrate(&t)
 
-	var c model.Appauth
-	_ = db.AutoMigrate(&c)
+	//var c model.Appauth
+	//_ = db.AutoMigrate(&c)
 
 	DB = db
 }
