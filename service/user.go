@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
+	"os"
 	"sync"
 	"test/common"
 	"test/dao"
@@ -22,6 +23,9 @@ type OnlineUserInfo struct {
 
 // OnlineUserMap 用户在线状态存储
 var OnlineUserMap sync.Map
+
+// LoginCount 登录次数
+var LoginCount int
 
 // 锁
 var mutex sync.Mutex
@@ -164,6 +168,8 @@ func Login(c *gin.Context) {
 			break
 		}
 	}
+	// 登录次数加1
+	LoginCount++
 	mutex.Unlock()
 
 	// 通过协程添加用户到在线用户中
@@ -176,7 +182,7 @@ func Login(c *gin.Context) {
 	//		time.Sleep(time.Second * 20) // 每20秒检查一次
 	//	}
 	//}()
-	common.UserRecord.Println(" [info] 登录成功", name)
+
 	//返回结果
 	c.JSON(200, serializer.Response{
 		Code: 200,
@@ -510,5 +516,24 @@ func CheckUsersExpiration() {
 
 		// 延迟一段时间后再检查
 		time.Sleep(1 * time.Second)
+	}
+}
+
+func ReportStatistics() {
+	file, err := os.OpenFile("csv/ReportStatistics.csv", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+
+	_, err = file.WriteString(fmt.Sprintf("%d,%d,%d\n", LoginCount, 0, 0))
+	if err != nil {
+		return
+	}
+}
+func InitReportStatistics() {
+	for {
+		ReportStatistics()
+		time.Sleep(time.Hour * 24 * 7)
 	}
 }

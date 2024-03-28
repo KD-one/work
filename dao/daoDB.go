@@ -5,79 +5,15 @@ import (
 	"fmt"
 	"github.com/spf13/viper"
 	"strings"
-	"test/common"
 	"test/model"
 	"time"
 )
-
-func CreateOrUpdateFile(fileName, size, t, projectNumber, versionNumber string) error {
-	if fileName != "" {
-		tmp := strings.Split(fileName, ".")
-		filename := tmp[0]
-		fileType := tmp[1]
-		f3 := common.DB.Where(map[string]interface{}{
-			"name": filename,
-			"type": fileType,
-		}).First(&model.File{})
-
-		//var file model.File
-		// 数据库中没有查到此文件纪录，则插入
-		if f3.RowsAffected == 0 {
-			// 创建文件记录
-			common.DB.Model(&model.File{}).Create(map[string]interface{}{
-				"name":           filename,
-				"type":           fileType,
-				"size":           size,
-				"created_at":     t,
-				"project_number": projectNumber,
-				"version_number": versionNumber,
-			})
-			//log.Printf("上传的文件名：%s", filename)
-		} else {
-			return errors.New("文件名已存在")
-		}
-		// 数据库中查到此文件纪录，则更新此文件记录的项目名和版本号
-		//file = model.File{
-		//	ProjectNumber: projectNumber,
-		//	VersionNumber: versionNumber,
-		//}
-		//common.DB.Model(&model.File{}).Where("name = ? and type = ?", filename, fileType).Updates(&file)
-	}
-	return nil
-}
-
-func GetFileMapByProjectAndVersion(projectName string, versionNumber string) (fileMap *model.Filemap, err error) {
-	err = common.DB.Model(&model.Filemap{}).Where("software_version_branch = ? AND software_version_number = ?", projectName, versionNumber).First(&fileMap).Error
-	return
-}
-
-func UpdateFileMapByProjectAndVersion(fileMap *model.Filemap, projectName string, versionNumber string) error {
-	err := common.DB.Model(&model.Filemap{}).Where("software_version_branch = ? AND software_version_number = ?", projectName, versionNumber).Updates(&fileMap).Error
-	return err
-}
-
-func DBUserRegister(name, password string, appAuth, paraAuth string, user *model.User) error {
-	common.DB.Where("name = ?", name).First(&user)
-	if user.ID != 0 {
-		return errors.New("DBUserRegister 用户已存在")
-	}
-
-	user.Name = name
-	user.Password = mD5([]byte(password))
-	user.AppAuth = appAuth
-	user.ParaAuth = paraAuth
-	if common.DB.Create(&user).Error != nil {
-		return errors.New("DBUserRegister 创建用户失败")
-	}
-
-	return nil
-}
 
 // -------------------------------------------- // --------------------------------------------------- // ------------------------------------------------ //
 
 func DBUserLogin(name, password string, userId *uint) error {
 	var user model.User
-	res := common.DB.Where("name = ?", name).First(&user)
+	res := dB.Where("name = ?", name).First(&user)
 	if res.RowsAffected == 0 {
 		return errors.New("DBUserLogin 用户不存在")
 	}
@@ -92,13 +28,13 @@ func DBUserLogin(name, password string, userId *uint) error {
 
 func DBUserGetTable(adminId uint, users *[]model.User) error {
 	var admin model.User
-	if common.DB.Model(model.User{}).Where("id = ?", adminId).First(&admin).Error != nil {
+	if dB.Model(model.User{}).Where("id = ?", adminId).First(&admin).Error != nil {
 		return errors.New("DBUserGetTable adminId不存在")
 	}
 	if admin.UserLevel < 2 {
 		return errors.New("DBUserGetTable 权限不足")
 	} else {
-		if common.DB.Model(&model.User{}).Find(&users).Error != nil {
+		if dB.Model(&model.User{}).Find(&users).Error != nil {
 			return errors.New("DBUserGetTable 查询失败")
 		}
 	}
@@ -113,9 +49,9 @@ func DBUserAddUpdate(adminId uint, user model.User, version int, changelog strin
 	var admin model.User
 	// u保存待修改用户信息
 	var u model.User
-	res := common.DB.Model(model.User{}).Where("name = ?", user.Name).First(&u)
+	res := dB.Model(model.User{}).Where("name = ?", user.Name).First(&u)
 
-	err = common.DB.Model(model.User{}).Where("id = ?", adminId).First(&admin).Error
+	err = dB.Model(model.User{}).Where("id = ?", adminId).First(&admin).Error
 	if err != nil {
 		return errors.New("DBUserAddUpdate adminId不存在")
 	}
@@ -123,11 +59,11 @@ func DBUserAddUpdate(adminId uint, user model.User, version int, changelog strin
 		// 如果数据库中不存在此用户，则创建用户
 		if res.RowsAffected == 0 {
 			user.UserLevel = 1
-			if common.DB.Model(model.User{}).Create(&user).Error != nil {
+			if dB.Model(model.User{}).Create(&user).Error != nil {
 				return errors.New("DBUserAddUpdate 创建用户失败")
 			}
 		} else { // 如果数据库中存在此用户，则更新用户信息
-			if common.DB.Model(model.User{}).Where("id = ?", u.ID).Updates(&user).Error != nil {
+			if dB.Model(model.User{}).Where("id = ?", u.ID).Updates(&user).Error != nil {
 				return errors.New("DBUserAddUpdate 更新用户失败")
 			}
 		}
@@ -145,9 +81,9 @@ func DBUserDelete(adminId uint, userName string, version int, changelog string) 
 	var admin model.User
 	// u保存待删除用户信息
 	var u model.User
-	res := common.DB.Model(model.User{}).Where("name = ?", userName).First(&u)
+	res := dB.Model(model.User{}).Where("name = ?", userName).First(&u)
 	// 判断adminId是否存在,存在则赋值给admin变量
-	if common.DB.Model(model.User{}).Where("id = ?", adminId).First(&admin).Error != nil {
+	if dB.Model(model.User{}).Where("id = ?", adminId).First(&admin).Error != nil {
 		return errors.New("DBUserDelete adminId不存在")
 	}
 
@@ -155,7 +91,7 @@ func DBUserDelete(adminId uint, userName string, version int, changelog string) 
 		return errors.New("DBUserDelete 用户不存在")
 	} else {
 		if admin.UserLevel > u.UserLevel {
-			if common.DB.Model(model.User{}).Delete(&u).Error != nil {
+			if dB.Model(model.User{}).Delete(&u).Error != nil {
 				return errors.New("DBUserDelete 删除失败")
 			}
 		} else {
@@ -168,14 +104,14 @@ func DBUserDelete(adminId uint, userName string, version int, changelog string) 
 func DBAppAuthGetUserAuth(adminId uint, appAuth *model.Appauth) error {
 	// u保存待查询的用户信息
 	var u model.User
-	res := common.DB.Model(model.User{}).Where("id = ?", adminId).First(&u)
+	res := dB.Model(model.User{}).Where("id = ?", adminId).First(&u)
 	if res.RowsAffected == 0 {
 		return errors.New("DBAppAuthGetUserAuth 用户不存在")
 	} else {
 		if u.UserLevel < 2 {
 			return errors.New("DBAppAuthGetUserAuth 权限不足")
 		} else {
-			err := common.DB.Model(&model.Appauth{}).Where("auth_name = ?", u.AppAuth).First(&appAuth).Error
+			err := dB.Model(&model.Appauth{}).Where("auth_name = ?", u.AppAuth).First(&appAuth).Error
 			if err != nil {
 				return errors.New("DBAppAuthGetUserAuth appAuth不存在")
 			}
@@ -186,14 +122,14 @@ func DBAppAuthGetUserAuth(adminId uint, appAuth *model.Appauth) error {
 
 func DBFindAppAuthByName(adminId uint, authName string, appAuth *model.Appauth) error {
 	var admin model.User
-	res := common.DB.Model(model.User{}).Where("id = ?", adminId).First(&admin)
+	res := dB.Model(model.User{}).Where("id = ?", adminId).First(&admin)
 	if res.RowsAffected == 0 {
 		return errors.New("DBFindAppAuthByName 用户不存在")
 	} else {
 		if admin.UserLevel < 2 {
 			return errors.New("DBFindAppAuthByName 权限不足")
 		} else {
-			err := common.DB.Model(&model.Appauth{}).Where("auth_name = ?", authName).First(&appAuth).Error
+			err := dB.Model(&model.Appauth{}).Where("auth_name = ?", authName).First(&appAuth).Error
 			if err != nil {
 				return errors.New("DBFindAppAuthByName appAuth不存在")
 			}
@@ -204,13 +140,13 @@ func DBFindAppAuthByName(adminId uint, authName string, appAuth *model.Appauth) 
 
 func DBAppAuthGetTable(adminId uint, appAuths *[]model.Appauth) error {
 	var admin model.User
-	if common.DB.Model(model.User{}).Where("id = ?", adminId).First(&admin).Error != nil {
+	if dB.Model(model.User{}).Where("id = ?", adminId).First(&admin).Error != nil {
 		return errors.New("DBAppAuthGetTable 用户不存在")
 	}
 	if admin.UserLevel < 2 {
 		return errors.New("DBAppAuthGetTable 权限不足")
 	} else {
-		if common.DB.Model(&model.Appauth{}).Find(&appAuths).Error != nil {
+		if dB.Model(&model.Appauth{}).Find(&appAuths).Error != nil {
 			return errors.New("DBAppAuthGetTable 查询失败")
 		}
 	}
@@ -223,20 +159,20 @@ func DBAppAuthAddUpdate(adminId uint, appAuth model.Appauth, version int, change
 		return err
 	}
 	var admin model.User
-	res := common.DB.Model(model.User{}).Where("id = ?", adminId).First(&admin)
+	res := dB.Model(model.User{}).Where("id = ?", adminId).First(&admin)
 	if res.RowsAffected == 0 {
 		return errors.New("DBAppAuthAddUpdate 用户不存在")
 	} else {
 		if admin.UserLevel < 2 {
 			return errors.New("DBAppAuthAddUpdate 权限不足")
 		} else {
-			r := common.DB.Model(&model.Appauth{}).Where("auth_name = ?", appAuth.AuthName).First(&model.Appauth{})
+			r := dB.Model(&model.Appauth{}).Where("auth_name = ?", appAuth.AuthName).First(&model.Appauth{})
 			if r.RowsAffected == 0 {
-				if common.DB.Model(&model.Appauth{}).Create(&appAuth).Error != nil {
+				if dB.Model(&model.Appauth{}).Create(&appAuth).Error != nil {
 					return errors.New("DBAppAuthAddUpdate 添加失败")
 				}
 			} else {
-				if common.DB.Model(&model.Appauth{}).Where("auth_name = ?", appAuth.AuthName).Updates(&appAuth).Error != nil {
+				if dB.Model(&model.Appauth{}).Where("auth_name = ?", appAuth.AuthName).Updates(&appAuth).Error != nil {
 					return errors.New("DBAppAuthAddUpdate 更新失败")
 				}
 			}
@@ -251,7 +187,7 @@ func DBAppAuthDelete(adminId uint, name string, version int, changelog string) e
 		return err
 	}
 	var admin model.User
-	res := common.DB.Model(model.User{}).Where("id = ?", adminId).First(&admin)
+	res := dB.Model(model.User{}).Where("id = ?", adminId).First(&admin)
 	if res.RowsAffected == 0 {
 		return errors.New("DBAppAuthDelete 用户不存在")
 	} else if admin.UserLevel < 2 {
@@ -259,7 +195,7 @@ func DBAppAuthDelete(adminId uint, name string, version int, changelog string) e
 	} else {
 		// 检查是否有用户正在使用这个name
 		var count int64
-		if common.DB.Model(&model.User{}).
+		if dB.Model(&model.User{}).
 			Where("app_auth = ?", name).
 			Count(&count).Error != nil {
 			return errors.New("DBAppAuthDelete 查找用户的app_auth字段个数时失败")
@@ -271,11 +207,11 @@ func DBAppAuthDelete(adminId uint, name string, version int, changelog string) e
 
 		// 检查并删除AppAuth记录
 		var existingAppAuth model.Appauth
-		r := common.DB.Model(&model.Appauth{}).Where("auth_name = ?", name).First(&existingAppAuth)
+		r := dB.Model(&model.Appauth{}).Where("auth_name = ?", name).First(&existingAppAuth)
 		if r.RowsAffected == 0 {
 			return errors.New("DBAppAuthDelete 记录不存在，请检查输入是否正确")
 		} else {
-			if common.DB.Delete(&existingAppAuth).Error != nil {
+			if dB.Delete(&existingAppAuth).Error != nil {
 				return errors.New("DBAppAuthDelete 删除失败")
 			}
 		}
@@ -286,11 +222,11 @@ func DBAppAuthDelete(adminId uint, name string, version int, changelog string) e
 func DBParaAuthGetUserAuth(adminId uint, paraAuth *model.Paraauth) error {
 	// u保存待查询的用户信息
 	var u model.User
-	res := common.DB.Model(model.User{}).Where("id = ?", adminId).First(&u)
+	res := dB.Model(model.User{}).Where("id = ?", adminId).First(&u)
 	if res.RowsAffected == 0 {
 		return errors.New("DBParaAuthGetUserAuth 用户不存在")
 	} else {
-		err := common.DB.Model(&model.Paraauth{}).Where("para_name = ?", u.ParaAuth).First(&paraAuth).Error
+		err := dB.Model(&model.Paraauth{}).Where("para_name = ?", u.ParaAuth).First(&paraAuth).Error
 		if err != nil {
 			return errors.New("DBParaAuthGetUserAuth paraAuth不存在")
 		}
@@ -300,13 +236,13 @@ func DBParaAuthGetUserAuth(adminId uint, paraAuth *model.Paraauth) error {
 
 func DBParaAuthGetTable(adminId uint, tableName string, paraAuths *[]model.Paraauth) error {
 	var admin model.User
-	if common.DB.Model(model.User{}).Where("id = ?", adminId).First(&admin).Error != nil {
+	if dB.Model(model.User{}).Where("id = ?", adminId).First(&admin).Error != nil {
 		return errors.New("DBParaAuthGetTable adminId不存在")
 	}
 	if admin.UserLevel < 2 {
 		return errors.New("DBParaAuthGetTable 权限不足")
 	} else {
-		err := common.DB.Table(tableName).Find(&paraAuths).Error
+		err := dB.Table(tableName).Find(&paraAuths).Error
 		if err != nil {
 			return errors.New("DBParaAuthGetTable paraAuth表不存在")
 		}
@@ -316,7 +252,7 @@ func DBParaAuthGetTable(adminId uint, tableName string, paraAuths *[]model.Paraa
 
 func DBParaAuthGetTableList(adminId uint, tableNames *[]string) error {
 	var admin model.User
-	if common.DB.Model(model.User{}).Where("id = ?", adminId).First(&admin).Error != nil {
+	if dB.Model(model.User{}).Where("id = ?", adminId).First(&admin).Error != nil {
 		return errors.New("DBParaAuthGetTableList adminId不存在")
 	}
 	if admin.UserLevel < 2 {
@@ -324,7 +260,7 @@ func DBParaAuthGetTableList(adminId uint, tableNames *[]string) error {
 	} else {
 		// 使用正则解析出数据库名
 		databaseName := viper.GetString("mysql.database")
-		rows, err := common.DB.Raw("SELECT table_name FROM information_schema.tables WHERE table_schema = ?;", databaseName).Rows()
+		rows, err := dB.Raw("SELECT table_name FROM information_schema.tables WHERE table_schema = ?;", databaseName).Rows()
 		if err != nil {
 			return errors.New("DBParaAuthGetTableList 获取数据库所有paraauth_表数据时出错")
 		}
@@ -353,7 +289,7 @@ func DBParaAuthAddUpdateTable(adminId uint, paraTableName string, paraAuth []mod
 		return err
 	}
 	var admin model.User
-	res := common.DB.Model(model.User{}).Where("id = ?", adminId).First(&admin)
+	res := dB.Model(model.User{}).Where("id = ?", adminId).First(&admin)
 	if res.RowsAffected == 0 {
 		return errors.New("DBParaAuthAddUpdateTable 用户不存在")
 	} else {
@@ -363,7 +299,7 @@ func DBParaAuthAddUpdateTable(adminId uint, paraTableName string, paraAuth []mod
 			// 检查并处理表
 			if checkTableExists(paraTableName) {
 				// 表存在，先删除再重建
-				if err := common.DB.Migrator().DropTable(paraTableName); err != nil {
+				if err := dB.Migrator().DropTable(paraTableName); err != nil {
 					return fmt.Errorf("DBParaAuthAddUpdateTable 删除表 %s 时出错: %s", paraTableName, err.Error())
 				}
 			}
@@ -371,12 +307,12 @@ func DBParaAuthAddUpdateTable(adminId uint, paraTableName string, paraAuth []mod
 			// 创建新表
 			createTableSQL := fmt.Sprintf("CREATE TABLE %s (id int unsigned NOT NULL AUTO_INCREMENT,para_name varchar(255) UNIQUE NOT NULL,min_value float NOT NULL,max_value float NOT NULL,change_enable tinyint(1) NOT NULL,PRIMARY KEY (`id`)) ENGINE=InnoDB;", paraTableName)
 
-			if err := common.DB.Exec(createTableSQL).Error; err != nil {
+			if err := dB.Exec(createTableSQL).Error; err != nil {
 				return fmt.Errorf("DBParaAuthAddUpdateTable 创建表 %s 时出错: %s", paraTableName, err.Error())
 			}
 			// 将 Paraauth 结构体数组数据插入新表
 			for _, auth := range paraAuth {
-				if err := common.DB.Table(paraTableName).Create(&auth).Error; err != nil {
+				if err := dB.Table(paraTableName).Create(&auth).Error; err != nil {
 					return fmt.Errorf("DBParaAuthAddUpdateTable 插入数据到 %s 表时出错: %s", paraTableName, err.Error())
 				}
 			}
@@ -391,7 +327,7 @@ func DBParaAuthDeleteTable(adminId uint, paraTableName string, version int, chan
 		return err
 	}
 	var admin model.User
-	res := common.DB.Model(model.User{}).Where("id = ?", adminId).First(&admin)
+	res := dB.Model(model.User{}).Where("id = ?", adminId).First(&admin)
 	if res.RowsAffected == 0 {
 		return errors.New("DBParaAuthDeleteTable 用户不存在")
 	} else if admin.UserLevel < 2 {
@@ -400,7 +336,7 @@ func DBParaAuthDeleteTable(adminId uint, paraTableName string, version int, chan
 		if checkTableExists(paraTableName) {
 			// 检查是否有用户正在使用这个para_auth表名
 			var count int64
-			if common.DB.Model(&model.User{}).
+			if dB.Model(&model.User{}).
 				Where("para_auth = ?", paraTableName).
 				Count(&count).Error != nil {
 				return errors.New("DBParaAuthDeleteTable 查找用户的para_auth字段个数时失败")
@@ -409,7 +345,7 @@ func DBParaAuthDeleteTable(adminId uint, paraTableName string, version int, chan
 			if count > 0 {
 				return errors.New("DBParaAuthDeleteTable 无法删除，有用户正在使用此ParaAuth名称，请先移除所有关联")
 			}
-			if err := common.DB.Migrator().DropTable(paraTableName); err != nil {
+			if err := dB.Migrator().DropTable(paraTableName); err != nil {
 				return fmt.Errorf("DBParaAuthDeleteTable 删除表 %s 时出错: %s", paraTableName, err.Error())
 			}
 		} else {
@@ -421,7 +357,7 @@ func DBParaAuthDeleteTable(adminId uint, paraTableName string, version int, chan
 
 func DBTableGetLatestVer(version *int) error {
 	var maxRecord model.Tablever
-	if common.DB.Model(&model.Tablever{}).Order("ver desc").First(&maxRecord).Error != nil {
+	if dB.Model(&model.Tablever{}).Order("ver desc").First(&maxRecord).Error != nil {
 		return errors.New("DBTableGetLatestVer 获取最新版本记录时出错")
 	}
 	*version = maxRecord.Ver
@@ -434,7 +370,7 @@ func DBTableAddNewVer(name, changelog string) error {
 		ChangeLog: changelog,
 		CreatedAt: time.Now().Format("2006-01-02 15:04:05"),
 	}
-	err := common.DB.Create(&record).Error
+	err := dB.Create(&record).Error
 	if err != nil {
 		return errors.New("DBTableAddNewVer 创建新的版本记录时出错")
 	}
@@ -443,7 +379,7 @@ func DBTableAddNewVer(name, changelog string) error {
 
 func checkTableExists(tableName string) bool {
 	// 获取 migrator 接口
-	migrator := common.DB.Migrator()
+	migrator := dB.Migrator()
 
 	// 检查表是否存在
 	exists := migrator.HasTable(tableName)
@@ -460,7 +396,7 @@ func DBTableCheckVer(version int) error {
 		fmt.Println("latesversion: ", latesversion)
 		fmt.Println("version: ", version)
 		var versionRecord model.Tablever
-		if common.DB.Model(model.Tablever{}).Where("ver = ?", latesversion).First(&versionRecord).Error != nil {
+		if dB.Model(model.Tablever{}).Where("ver = ?", latesversion).First(&versionRecord).Error != nil {
 			return errors.New("DBTableCheckVer 获取最新版本记录时出错")
 		}
 		return errors.New(fmt.Sprintf("DBTableCheckVer 数据已被%s在%s时间修改，修改内容为%s", versionRecord.User, versionRecord.CreatedAt, versionRecord.ChangeLog))
@@ -470,14 +406,14 @@ func DBTableCheckVer(version int) error {
 
 func DBGetLimitVersionTable(adminId uint, tableVersion *[]model.Tablever) error {
 	var admin model.User
-	res := common.DB.Model(model.User{}).Where("id = ?", adminId).First(&admin)
+	res := dB.Model(model.User{}).Where("id = ?", adminId).First(&admin)
 	if res.RowsAffected == 0 {
 		return errors.New("DBGetLimitVersionTable 用户不存在")
 	} else {
 		if admin.UserLevel < 2 {
 			return errors.New("DBGetLimitVersionTable 权限不足")
 		} else {
-			if common.DB.Model(model.Tablever{}).Order("ver desc").Limit(viper.GetInt("versionRecord.limit")).Find(&tableVersion).Error != nil {
+			if dB.Model(model.Tablever{}).Order("ver desc").Limit(viper.GetInt("versionRecord.limit")).Find(&tableVersion).Error != nil {
 				return errors.New("DBGetLimitVersionTable 获取版本记录时出错")
 			}
 		}
@@ -487,14 +423,14 @@ func DBGetLimitVersionTable(adminId uint, tableVersion *[]model.Tablever) error 
 
 func DBGetLimitClientLogTable(adminId uint, clientLog *[]model.ClientLog) error {
 	var admin model.User
-	res := common.DB.Model(model.User{}).Where("id = ?", adminId).First(&admin)
+	res := dB.Model(model.User{}).Where("id = ?", adminId).First(&admin)
 	if res.RowsAffected == 0 {
 		return errors.New("DBGetLimitClientLogTable 用户不存在")
 	} else {
 		if admin.UserLevel < 2 {
 			return errors.New("DBGetLimitClientLogTable 权限不足")
 		} else {
-			if common.DB.Model(model.ClientLog{}).Order("id desc").Limit(viper.GetInt("versionRecord.limit")).Find(&clientLog).Error != nil {
+			if dB.Model(model.ClientLog{}).Order("id desc").Limit(viper.GetInt("versionRecord.limit")).Find(&clientLog).Error != nil {
 				return errors.New("DBGetLimitClientLogTable 获取版本记录时出错")
 			}
 		}
@@ -503,7 +439,7 @@ func DBGetLimitClientLogTable(adminId uint, clientLog *[]model.ClientLog) error 
 }
 
 func DBCheckECUFileMapRecordExists(branch, version uint) int64 {
-	m := common.DB.Where(map[string]interface{}{
+	m := dB.Where(map[string]interface{}{
 		"branch":  branch,
 		"version": version,
 	}).First(&model.EcuFileMap{})
@@ -512,14 +448,14 @@ func DBCheckECUFileMapRecordExists(branch, version uint) int64 {
 
 func DBCreateECUFileMapRecord(adminId uint, ecuFileMap model.EcuFileMap) error {
 	var admin model.User
-	res := common.DB.Model(model.User{}).Where("id = ?", adminId).First(&admin)
+	res := dB.Model(model.User{}).Where("id = ?", adminId).First(&admin)
 	if res.RowsAffected == 0 {
 		return errors.New("DBCreateECUFileMapRecord 用户不存在")
 	} else {
 		if admin.UserLevel < 2 {
 			return errors.New("DBCreateECUFileMapRecord 权限不足")
 		} else {
-			err := common.DB.Create(&ecuFileMap).Error
+			err := dB.Create(&ecuFileMap).Error
 			if err != nil {
 				return errors.New("DBCreateECUFileMapRecord 插入记录时出错")
 			}
@@ -529,7 +465,7 @@ func DBCreateECUFileMapRecord(adminId uint, ecuFileMap model.EcuFileMap) error {
 }
 
 func DBWhereBuildFileFindRecord(buildFile string, ecuFileMap *model.EcuFileMap) error {
-	if common.DB.Model(&model.EcuFileMap{}).Where("build_file = ?", buildFile).First(&ecuFileMap).Error != nil {
+	if dB.Model(&model.EcuFileMap{}).Where("build_file = ?", buildFile).First(&ecuFileMap).Error != nil {
 		return errors.New("DBWhereBuildFileFindRecord 查找记录时出错")
 	}
 	return nil
@@ -537,14 +473,14 @@ func DBWhereBuildFileFindRecord(buildFile string, ecuFileMap *model.EcuFileMap) 
 
 func DBFindECUFileMapRecord(adminId, branch, version uint, ecuFileMap *model.EcuFileMap) error {
 	var admin model.User
-	res := common.DB.Model(model.User{}).Where("id = ?", adminId).First(&admin)
+	res := dB.Model(model.User{}).Where("id = ?", adminId).First(&admin)
 	if res.RowsAffected == 0 {
 		return errors.New("DBFindECUFileMapRecord 用户不存在")
 	} else {
 		if admin.UserLevel < 2 {
 			return errors.New("DBFindECUFileMapRecord 权限不足")
 		} else {
-			err := common.DB.Model(&model.EcuFileMap{}).Where("branch = ? AND version = ?", branch, version).First(&ecuFileMap).Error
+			err := dB.Model(&model.EcuFileMap{}).Where("branch = ? AND version = ?", branch, version).First(&ecuFileMap).Error
 			if err != nil {
 				return errors.New(fmt.Sprintf("DBFindECUFileMapRecord 查找记录时出错 err:%s", err.Error()))
 			}
@@ -554,7 +490,7 @@ func DBFindECUFileMapRecord(adminId, branch, version uint, ecuFileMap *model.Ecu
 }
 
 func DBFindECUFileMapRecordNoAuth(branch, version uint, ecuFileMap *model.EcuFileMap) error {
-	err := common.DB.Model(&model.EcuFileMap{}).Where("branch = ? AND version = ?", branch, version).First(&ecuFileMap).Error
+	err := dB.Model(&model.EcuFileMap{}).Where("branch = ? AND version = ?", branch, version).First(&ecuFileMap).Error
 	if err != nil {
 		return errors.New(fmt.Sprintf("DBFindECUFileMapRecord 查找记录时出错 err:%s", err.Error()))
 	}
@@ -562,7 +498,7 @@ func DBFindECUFileMapRecordNoAuth(branch, version uint, ecuFileMap *model.EcuFil
 }
 
 func DBCheckGtCurrentVersion(branch, version uint, ecuFileMap *[]model.EcuFileMap) error {
-	err := common.DB.Model(&model.EcuFileMap{}).Where("branch = ? AND version > ?", branch, version).Find(&ecuFileMap).Error
+	err := dB.Model(&model.EcuFileMap{}).Where("branch = ? AND version > ?", branch, version).Find(&ecuFileMap).Error
 	if err != nil {
 		return errors.New("DBCheckGtCurrentVersion 检查版本时出错")
 	}
@@ -570,34 +506,127 @@ func DBCheckGtCurrentVersion(branch, version uint, ecuFileMap *[]model.EcuFileMa
 }
 
 func DBClientLogAdd(cLog model.ClientLog) error {
-	common.DB.Begin()
-	err := common.DB.Create(&cLog).Error
+	dB.Begin()
+	err := dB.Create(&cLog).Error
 	if err != nil {
 		return errors.New("DBClientLogAdd 插入数据时出错")
-		common.DB.Rollback()
+		dB.Rollback()
 	}
-	common.DB.Commit()
+	dB.Commit()
+	return nil
+}
+
+func ECUProjectAddChange(adminId uint, ecuProject model.ECUProjectList) error {
+	var admin model.User
+	res := dB.Model(model.User{}).Where("id = ?", adminId).First(&admin)
+	if res.RowsAffected == 0 {
+		return errors.New("ECUProjectAddChange 用户不存在")
+	} else {
+		if admin.UserLevel < 2 {
+			return errors.New("ECUProjectAddChange 权限不足")
+		} else {
+			r := dB.Model(&model.ECUProjectList{}).Where("project_code = ?", ecuProject.ProjectCode).First(&model.ECUProjectList{})
+			if r.RowsAffected == 0 {
+				err := dB.Create(&ecuProject).Error
+				if err != nil {
+					return errors.New("ECUProjectAddChange 插入数据时出错")
+				}
+			} else {
+				err := dB.Model(&model.ECUProjectList{}).Where("project_code = ?", ecuProject.ProjectCode).Updates(&ecuProject).Error
+				if err != nil {
+					return errors.New("ECUProjectAddChange 更新数据时出错")
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func DBCheckBranchAndVersionRepeat(branch, version uint) bool {
+	row := dB.Model(&model.ECUVer{}).Where("sw_branch = ? AND sw_version = ?", branch, version).First(&model.ECUVer{})
+	if row.RowsAffected != 0 {
+		return true
+	}
+	return false
+}
+func DBFindECUSoftwareRecord(branch, version uint, ecuVer *model.ECUVer) error {
+	if dB.Model(&model.ECUVer{}).Where("sw_branch = ? AND sw_version = ?", branch, version).First(&ecuVer).Error != nil {
+		return errors.New("DBFindECUSoftwareRecord 查找记录时出错")
+	}
+	return nil
+}
+
+func DBWhereSWBranchFindECUProjectListRecord(branch uint, ecuProjectList *model.ECUProjectList) error {
+	if dB.Model(&model.ECUProjectList{}).Where("software_branch = ?", branch).First(&ecuProjectList).Error != nil {
+		return errors.New("DBWhereSWBranchFindECUProjectListRecord 查找记录时出错")
+	}
+	return nil
+}
+
+func ECUSoftwareVersionAdd(adminId uint, ecuVer model.ECUVer) error {
+	var admin model.User
+	res := dB.Model(model.User{}).Where("id = ?", adminId).First(&admin)
+	if res.RowsAffected == 0 {
+		return errors.New("ECUSoftwareVersionAdd 用户不存在")
+	} else {
+		if admin.UserLevel < 2 {
+			return errors.New("ECUSoftwareVersionAdd 权限不足")
+		} else {
+			if dB.Create(&ecuVer).Error != nil {
+				return errors.New("ECUSoftwareVersionAdd 插入数据时出错")
+			}
+		}
+	}
+	return nil
+}
+
+func ECUSoftwareVersionChange(adminId uint, ecuVer model.ECUVer) error {
+	var admin model.User
+	res := dB.Model(model.User{}).Where("id = ?", adminId).First(&admin)
+	if res.RowsAffected == 0 {
+		return errors.New("ECUSoftwareVersionChange 用户不存在")
+	} else {
+		if admin.UserLevel < 2 {
+			return errors.New("ECUSoftwareVersionChange 权限不足")
+		} else {
+			if dB.Model(&model.ECUVer{}).Where("sw_branch = ? AND sw_version = ?", ecuVer.SWBranch, ecuVer.SWVersion).Updates(&ecuVer).Error != nil {
+				return errors.New("ECUSoftwareVersionChange 更新数据时出错")
+			}
+		}
+	}
+	return nil
+}
+
+func DBValidBranch(branch uint) int64 {
+	res := dB.Model(&model.ECUVer{}).Where("sw_branch = ?", branch).First(&model.ECUVer{})
+	return res.RowsAffected
+}
+
+func DBFindLatestBranchRecord(branch uint, ecuVer *model.ECUVer) error {
+	if dB.Model(&model.ECUVer{}).Where("sw_branch = ?", branch).Order("id desc").First(&ecuVer).Error != nil {
+		return errors.New("DBCheckSemiFinishedProducts 查询失败")
+	}
 	return nil
 }
 
 //  系统使用函数，慎用！！！！！！！！！！！！！！！！！！！！！！！！！
 
 func FindUserTable(users *[]model.User) error {
-	if common.DB.Model(&model.User{}).Find(&users).Error != nil {
+	if dB.Model(&model.User{}).Find(&users).Error != nil {
 		return errors.New("FindUserTable 查询失败")
 	}
 	return nil
 }
 
 func FindInstruction(instructionId uint, instruction *model.Instruction) error {
-	if common.DB.Model(&model.Instruction{}).Where("id = ?", instructionId).First(&instruction).RowsAffected == 0 {
+	if dB.Model(&model.Instruction{}).Where("id = ?", instructionId).First(&instruction).RowsAffected == 0 {
 		return errors.New("FindInstructionTable 没找到记录")
 	}
 	return nil
 }
 
 func UpdateInstructionRecord(instructionId uint, instruction model.Instruction) error {
-	if common.DB.Model(&model.Instruction{}).Where("id = ?", instructionId).Updates(&instruction).Error != nil {
+	if dB.Model(&model.Instruction{}).Where("id = ?", instructionId).Updates(&instruction).Error != nil {
 		return errors.New("UpdateInstructionRecord 更新数据时出错")
 	}
 	return nil
@@ -606,7 +635,7 @@ func UpdateInstructionRecord(instructionId uint, instruction model.Instruction) 
 func InsertInstructionReturnId(adminId uint, instruction model.Instruction) (uint, error) {
 	var admin model.User
 	var ins model.Instruction
-	res := common.DB.Model(&model.User{}).Where("id = ?", adminId).First(&admin)
+	res := dB.Model(&model.User{}).Where("id = ?", adminId).First(&admin)
 
 	if admin.UserLevel < 2 {
 		return 0, errors.New("InsertInstructionReturnId 权限不足")
@@ -614,11 +643,11 @@ func InsertInstructionReturnId(adminId uint, instruction model.Instruction) (uin
 		if res.RowsAffected == 0 {
 			return 0, errors.New("InsertInstructionReturnId 用户不存在")
 		} else {
-			err := common.DB.Model(&model.Instruction{}).Create(&instruction).Error
+			err := dB.Model(&model.Instruction{}).Create(&instruction).Error
 			if err != nil {
 				return 0, errors.New("InsertInstructionReturnId 插入数据时出错")
 			}
-			err = common.DB.Model(&model.Instruction{}).Order("id desc").First(&ins).Error
+			err = dB.Model(&model.Instruction{}).Order("id desc").First(&ins).Error
 			if err != nil {
 				return 0, errors.New("InsertInstructionReturnId 获取id时出错")
 			}
@@ -628,6 +657,6 @@ func InsertInstructionReturnId(adminId uint, instruction model.Instruction) (uin
 }
 func FindUserName(adminId uint) string {
 	var admin model.User
-	common.DB.Model(&model.User{}).Where("id = ?", adminId).First(&admin)
+	dB.Model(&model.User{}).Where("id = ?", adminId).First(&admin)
 	return admin.Name
 }

@@ -2,7 +2,6 @@ package common
 
 import (
 	"archive/zip"
-	"fmt"
 	"io"
 	"os"
 	"path"
@@ -10,7 +9,6 @@ import (
 
 // ZipFiles 将多个文件打包成一个zip文件
 func ZipFiles(filename string, files []string) error {
-	fmt.Println("start zip file......")
 	//创建输出文件目录
 	newZipFile, err := os.Create(filename)
 	if err != nil {
@@ -26,7 +24,6 @@ func ZipFiles(filename string, files []string) error {
 			return err
 		}
 	}
-	fmt.Println("zip file created success!")
 	return nil
 }
 

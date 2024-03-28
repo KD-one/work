@@ -2,6 +2,8 @@ package service
 
 import (
 	"bytes"
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"io"
@@ -484,4 +486,10 @@ func ECUSoftwareCheckNewVer(c *gin.Context) {
 			"NewVersions": ecuRecord,
 		},
 	})
+}
+
+func MD5(data []byte) string {
+	_md5 := md5.New()
+	_md5.Write(data)
+	return hex.EncodeToString(_md5.Sum([]byte("")))
 }

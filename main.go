@@ -3,8 +3,8 @@ package main
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
-	"test/common"
 	"test/config"
+	"test/dao"
 	"test/router"
 	"test/service"
 )
@@ -13,14 +13,7 @@ func main() {
 	config.Init()
 
 	// 初始化数据库
-	common.InitDB()
-
-	// 初始化casbin数据库
-	//common.InitCasbinDB()
-
-	// 日志相关
-	common.Log()
-	defer common.F.Close()
+	dao.InitDB()
 
 	// 初始化用户列表
 	err := config.InitUserList(&service.UserList)
@@ -28,17 +21,17 @@ func main() {
 		panic("初始化用户列表失败")
 	}
 
-	// 每秒检查系统状态
+	// 每秒检查 UserList 中的用户是否过期
 	go service.CheckUsersExpiration()
+
+	// 每秒检查系统状态
+	go service.CheckSystemStatus()
+
+	// 每周统计数据
+	go service.InitReportStatistics()
 
 	// 创建默认路由
 	r := gin.Default()
-
-	//// 注册全局模板
-	//r.LoadHTMLGlob("template/**/*")
-	//
-	//// 配置静态文件服务
-	//r.Static("/images", "./images")
 
 	// 注册路由
 	router.RouterList(r)
